@@ -107,11 +107,17 @@
         }
 
         textarea {
-            resize: vertical;
+            width: 100%;
+            resize: both;
+            /* Allow resizing both horizontally and vertically */
             padding: 10px;
             margin-bottom: 15px;
             border-radius: 4px;
             border: 1px solid #ccc;
+            min-height: 150px;
+            box-sizing: border-box;
+            overflow: auto;
+            /* Ensure scrollbars appear if content overflows */
         }
 
         button {
