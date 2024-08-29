@@ -15,12 +15,13 @@
 4. **View Note**: After submission, a link to view your note on [njump.me](https://njump.me/) will be provided.
 
 ## IPFS
-Access the Anonostr web app through the decentralized IPFS network
+Access the Anonostr web app through the decentralized IPFS network:
+
 - https://white-sun-2491.on.fleek.co/ 
 
 Current IPFS Hash:
 
-QmQPRRbVfQg7GV1fiBf4Wcdh6g3f9q5WCPEYJ592UaUkrH
+- QmXrcvRc7TMq9ht4H4FCmzv2PLkK1fhTVWCUuojqfYDuw7
 
 ## Installation
 You can install **Anonostr** as a Progressive Web App (PWA) on your mobile or desktop device:
