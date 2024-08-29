@@ -41,7 +41,8 @@ Contributions are welcome! Please follow these steps:
 
 ## Roadmap
 - Support for DMs (kind 4)
-- Optional onion service relays
+- Relay hopping
+- TOR relays option
 - Bloom and/or media upload
 
 ## Links
