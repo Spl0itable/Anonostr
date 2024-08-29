@@ -5,7 +5,6 @@ const urlsToCache = [
   '/manifest.json',
   '/images/anonostr-icon.png',
   '/images/anonostr-hero.png',
-  // Add other assets that need to be cached
 ];
 
 // Install the service worker and cache all necessary assets
@@ -24,9 +23,9 @@ self.addEventListener('fetch', event => {
     caches.match(event.request)
       .then(response => {
         if (response) {
-          return response; // Return the cached asset
+          return response;
         }
-        return fetch(event.request); // Fetch from network if not cached
+        return fetch(event.request); 
       })
   );
 });

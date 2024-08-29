@@ -9,7 +9,7 @@
 - **Progressive Web App (PWA)**: Installable on mobile and desktop, with offline capabilities.
 
 ## Usage
-1. **Enter Your Note**: Write your note in the text area provided. You can mention other users or notes using NIP-19 compatible identifiers such as `@npub...`, `@note...`, or `@nprofile...`.
+1. **Enter Your Note**: Write your note in the text area provided. You can mention other users or notes using [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md) compatible identifiers such as `@npub...`, `@note...`, or `@nprofile...`.
 2. **Enable Reply Chain (Optional)**: Check the "Reply chain" option to link your notes in a threaded conversation.
 3. **Send Note**: Click the "Send Note" button to publish your note anonymously to the Nostr network.
 4. **View Note**: After submission, a link to view your note on [njump.me](https://njump.me/) will be provided.
@@ -30,8 +30,10 @@ Contributions are welcome! Please follow these steps:
 5. Push to the branch (`git push origin feature/YourFeature`).
 6. Create a new Pull Request.
 
-## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+## Roadmap
+- Support for DMs (kind 4)
+- Optional onion service relays
+- Bloom and/or media upload
 
 ## Links
 - **Live Demo**: [Anonostr.com](https://anonostr.com/)
@@ -39,3 +41,6 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Zap Me ⚡️
 Support the project by zapping! Click the "Zap Me ⚡️" button in the app footer or send directly to `69420@walletofsatoshi.com`
+
+## License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
