@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anonostr | Anonymous Nostr Note Sender</title>
+    <meta name="description" content="Send anonymous notes to the Nostr network with Anonostr. Generate a new key pair for each submission, publish via select relays, and enjoy features like tagging, threading, and replies.">
+    <link rel="icon" href="./images/anonostr-icon.png" type="image/png">
+    <link rel="canonical" href="https://anonostr.com/">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#007bff">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Anonostr">
+    <link rel="apple-touch-icon" href="./images/anonostr-icon.png">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .hero-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 20px;
+        }
+
+        .hero {
+            width: 50%;
+            height: auto;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .desc-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            flex: 1;
+            text-align: center;
+            margin: 0;
+            font-size: 24px;
+        }
+
+        @media (min-width: 601px) {
+            h1 {
+                font-size: 48px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .hero-section {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .hero {
+                width: 100%;
+                height: auto;
+            }
+
+            h1 {
+                text-align: center;
+                margin-top: 10px;
+                font-size: 24px;
+            }
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        textarea {
+            resize: vertical;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            position: relative;
+        }
+
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 2px solid #007bff;
+            width: 14px;
+            height: 14px;
+            animation: spin 1s linear infinite;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -7px;
+            margin-left: -7px;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .note {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .note.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .note.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .note.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .note a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .note a:hover {
+            text-decoration: underline;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .checkbox-container input {
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        .checkbox-container label {
+            margin: 0;
+            vertical-align: middle;
+        }
+
+        .tooltip {
+            margin-left: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip .tooltiptext::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px 0;
+            background-color: #fff;
+            margin-top: 20px;
+        }
+
+        .github-buttons-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @media (min-width: 601px) {
+            .github-buttons-container {
+                flex-direction: row;
+                justify-content: center;
+            }
+        }
+
+        footer a,
+        footer button[data-npub] {
+            color: #007bff;
+            text-decoration: none;
+            border: none;
+            background: none;
+            padding: 0;
+            font: inherit;
+        }
+
+        footer a:hover,
+        footer button[data-npub]:hover {
+            text-decoration: none;
+        }
+
+        footer button[data-npub] {
+            display: inline-block;
+            height: 28px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #fff;
+            background-color: #1a2026;
+            border: 1px solid #3d444d;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            vertical-align: middle;
+            margin-top: -4px;
+        }
+
+        footer button[data-npub]:hover {
+            background-color: #1a2026;
+            border-color: #3d444d;
+        }
+
+        footer button[data-npub]:active {
+            background-color: #1e7e34;
+            border-color: #1c7430;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <img src="./images/anonostr-hero.png" alt="Anonostr Hero Banner" class="hero">
+            <h1>Anonymous Nostr Note Sender</h1>
+        </div>
+        <!-- Desc Section -->
+        <div class="desc-section">
+            <p><strong>Anonostr</strong> allows users to send anonymous notes to the Nostr network without revealing their identity. The app generates a new key pair for each note submission and publishes the note using a few select relays. It supports tagging, threading, and replying to existing notes.</p>
+        </div>
+
+        <form id="eventForm">
+            <label for="note">Enter your note:</label>
+            <textarea id="note" rows="6" placeholder="@npub1... or @note1... or #tag your note here"></textarea>
+
+            <div class="checkbox-container">
+                <input type="checkbox" id="replyChain">
+                <label for="replyChain">Reply chain</label>
+                <div class="tooltip">ℹ️
+                    <span class="tooltiptext">Enable this to link your notes as replies in consecutive order within a threaded conversation.</span>
+                </div>
+            </div>
+
+            <button type="submit">
+                Send Note
+                <div class="spinner"></div>
+            </button>
+        </form>
+        <div id="statusNote" class="note"></div>
+
+        <!-- Footer Section -->
+        <footer>
+            <div class="github-buttons-container">
+                <!-- "Zap Me ⚡️" Button -->
+                <button data-npub="npub16jdfqgazrkapk0yrqm9rdxlnys7ck39c7zmdzxtxqlmmpxg04r0sd733sv"
+                    data-relays="wss://relay.damus.io,wss://relay.primal.net,wss://relay.nostr.band">
+                    Zap Me ⚡️
+                </button>
+
+                <!-- GitHub Buttons -->
+                <a class="github-button" href="https://github.com/Spl0itable"
+                    data-color-scheme="no-preference: light; light: light; dark: dark;" data-size="large"
+                    aria-label="Follow @Spl0itable on GitHub">Follow @Spl0itable</a>
+
+                <a class="github-button" href="https://github.com/Spl0itable/anonostr"
+                    data-color-scheme="no-preference: light; light: light; dark: dark;" data-icon="octicon-star"
+                    data-size="large" aria-label="Star Spl0itable/anonostr on GitHub">Star</a>
+
+                <a class="github-button" href="https://github.com/Spl0itable/anonostr/archive/HEAD.zip"
+                    data-color-scheme="no-preference: light; light: light; dark: dark;" data-icon="octicon-download"
+                    data-size="large" aria-label="Download Spl0itable/anonostr on GitHub">Download</a>
+            </div>
+            <p>Made with 💟 by <a
+                href="https://nostr.band/npub16jdfqgazrkapk0yrqm9rdxlnys7ck39c7zmdzxtxqlmmpxg04r0sd733sv"
+                target="_blank">@Lux</a></p>
+        </footer>
+    </div>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                })
+                .catch(error => {
+                    console.log('Service Worker registration failed:', error);
+                });
+        }
+    </script>
+
+    <!-- Include nostr-tools Library -->
+    <script src="https://unpkg.com/nostr-tools/lib/nostr.bundle.js"></script>
+
+    <!-- GitHub Buttons Script -->
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
+
+    <!-- Nostr Zap Button Script -->
+    <script src="https://cdn.jsdelivr.net/npm/nostr-zap@1.1.0"></script>
+
+    <script>
+        const relays = [
+            'wss://relay.damus.io',
+            'wss://relay.primal.net',
+            'wss://relay.nostr.band'
+        ];
+
+        const rateLimitSeconds = 30; // 30 second delay between note sending
+        const localStorageKey = 'lastSubmitTime';
+
+        let rootEventId = null; // Store the root event ID for threading
+        let lastEventId = null; // Store the ID of the last event to reply to it in the chain
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const statusNote = document.getElementById('statusNote');
+            const form = document.getElementById('eventForm');
+            const noteInput = document.getElementById('note');
+            const replyChainCheckbox = document.getElementById('replyChain');
+            const submitButton = form.querySelector('button');
+            const spinner = submitButton.querySelector('.spinner');
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                const currentTime = Math.floor(Date.now() / 1000);
+                const lastSubmitTime = parseInt(localStorage.getItem(localStorageKey), 10) || 0;
+                const timeSinceLastSubmit = currentTime - lastSubmitTime;
+
+                if (timeSinceLastSubmit < rateLimitSeconds) {
+                    const timeLeft = rateLimitSeconds - timeSinceLastSubmit;
+                    showNote(`Please wait ${timeLeft} second(s) before submitting again.`, 'warning');
+                    return;
+                }
+
+                // Update the last submit time in localStorage
+                localStorage.setItem(localStorageKey, currentTime);
+
+                // Reset the status note and show the spinner
+                showNote('', '');
+                spinner.style.display = 'inline-block';
+                submitButton.disabled = true;
+
+                // Generate a new key pair on each submit
+                const sk = NostrTools.generateSecretKey();
+                const pubKey = NostrTools.getPublicKey(sk);
+
+                let note = noteInput.value.trim();
+                if (!note) {
+                    showNote('Please enter a note.', 'error');
+                    resetFormState();
+                    return;
+                }
+
+                const tags = [];
+                const bech32Regex = /@([a-z]{1,}[1][qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,})/g;
+
+                // Handle mentions and note references: @npub..., @nprofile..., @note...
+                const matches = note.match(bech32Regex);
+                if (matches) {
+                    for (const match of matches) {
+                        try {
+                            // Decode the bech32 entity to get the hex key or ID
+                            const decoded = NostrTools.nip19.decode(match.substring(1)); 
+
+                            const hexKey = decoded.data;
+
+                            // Add the hex key to the tags array based on its type
+                            if (decoded.type === 'npub' || decoded.type === 'nprofile') {
+                                tags.push(["p", hexKey, "", "mention"]);
+                            } else if (decoded.type === 'note') {
+                                tags.push(["e", hexKey, "", "reply"]);
+                                // If this is the first reply in the chain, set it as the root
+                                if (!rootEventId) {
+                                    rootEventId = hexKey;
+                                }
+                            }
+
+                            // Replace the mention with the shorter nostr:bech32 format
+                            note = note.replace(match, `nostr:${match.substring(1)}`);
+                        } catch (error) {
+                            console.error('Error decoding bech32:', error);
+                        }
+                    }
+                }
+
+                // If reply chain is enabled and there's a last event ID, add it as a reply
+                if (replyChainCheckbox.checked && lastEventId) {
+                    // Add the last event ID as the "reply"
+                    tags.push(["e", lastEventId, "", "reply"]);
+
+                    // If there's no root event ID, set the last event ID as root
+                    if (!rootEventId) {
+                        rootEventId = lastEventId;
+                    }
+                }
+
+                // Add the root event ID if it exists
+                if (rootEventId) {
+                    tags.push(["e", rootEventId, "", "root"]);
+                }
+
+                // Handle hashtags: #tag
+                const hashtags = note.match(/#\w+/g);
+                if (hashtags) {
+                    for (const tag of hashtags) {
+                        tags.push(["t", tag.substring(1)]);
+                    }
+                }
+
+                const eventTemplate = {
+                    kind: 1,
+                    pubkey: pubKey,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: tags,
+                    content: note
+                };
+
+                console.log('Event Template:', eventTemplate);
+
+                // Finalize the event (assigns the event ID, pubkey, and signs it)
+                const signedEvent = NostrTools.finalizeEvent(eventTemplate, sk);
+                lastEventId = signedEvent.id;
+
+                // If this is the first event, set it as the root for future replies
+                if (!rootEventId) {
+                    rootEventId = lastEventId;
+                }
+
+                console.log('Signed Event:', signedEvent);
+
+                try {
+                    await Promise.all(relays.map(async (relayUrl) => {
+                        // Connect to the relay
+                        const relay = new NostrTools.Relay(relayUrl);
+                        await relay.connect();
+
+                        // Publish the signed event
+                        await relay.publish(signedEvent);
+
+                        // Close the relay connection
+                        relay.close();
+                    }));
+
+                    // Create a link to view the event on njump.me
+                    const eventId = signedEvent.id;
+                    const eventLink = `https://njump.me/${eventId}`;
+                    showNote(`Anon note sent successfully! <a href="${eventLink}" target="_blank">View Event</a>`, 'success');
+
+                    // Clear the note input field after successful submission
+                    noteInput.value = '';
+                } catch (error) {
+                    console.error('Failed to send note:', error);
+                    showNote('Failed to send anon note. Please try again.', 'error');
+                } finally {
+                    // Reset the form state (hide spinner, enable button)
+                    resetFormState();
+                }
+            });
+
+            function resetFormState() {
+                spinner.style.display = 'none';
+                submitButton.disabled = false;
+            }
+
+            function showNote(note, type) {
+                statusNote.innerHTML = note;
+                statusNote.className = `note ${type}`;
+                statusNote.style.display = note ? 'block' : 'none';
+            }
+        });
+    </script>
+</body>
+
+</html>
