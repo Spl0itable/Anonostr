@@ -5,7 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anonostr | Anonymous Nostr Note Sender</title>
-    <meta name="description" content="Send anonymous notes to the Nostr network with Anonostr. Generate a new key pair for each submission, publish via select relays, and enjoy features like tagging, threading, and replies.">
+    <meta name="description"
+        content="Send anonymous notes to the Nostr network with Anonostr. Generate a new key pair for each submission, publish via select relays, and enjoy features like tagging, threading, and replies.">
+    <link rel="alternate" href="ipfs://QmaMcZbjWWJFvMnMDLXeLGDAM7vE219MRpspkeRgCGHgSs" title="Access via IPFS">
+    <meta name="ipfs-hash" content="QmaMcZbjWWJFvMnMDLXeLGDAM7vE219MRpspkeRgCGHgSs">
     <link rel="icon" href="./images/anonostr-icon.png" type="image/png">
     <link rel="canonical" href="https://anonostr.com/">
     <link rel="manifest" href="/manifest.json">
@@ -74,7 +77,7 @@
             }
 
             .hero {
-                width: 100%;
+                width: 50vw;
                 height: auto;
             }
 
@@ -308,7 +311,9 @@
         </div>
         <!-- Desc Section -->
         <div class="desc-section">
-            <p><strong>Anonostr</strong> allows users to send anonymous notes to the Nostr network without revealing their identity. The app generates a new key pair for each note submission and publishes the note using a few select relays. It supports tagging, threading, and replying to existing notes.</p>
+            <p><strong>Anonostr</strong> allows users to send anonymous notes to the Nostr network without revealing
+                their identity. The app generates a new key pair for each note submission and publishes the note using a
+                few select relays. It supports tagging, threading, and replying to existing notes.</p>
         </div>
 
         <form id="eventForm">
@@ -319,7 +324,8 @@
                 <input type="checkbox" id="replyChain">
                 <label for="replyChain">Reply chain</label>
                 <div class="tooltip">ℹ️
-                    <span class="tooltiptext">Enable this to link your notes as replies in consecutive order within a threaded conversation.</span>
+                    <span class="tooltiptext">Enable this to link your notes as replies in consecutive order within a
+                        threaded conversation.</span>
                 </div>
             </div>
 
@@ -353,8 +359,8 @@
                     data-size="large" aria-label="Download Spl0itable/anonostr on GitHub">Download</a>
             </div>
             <p>Made with 💟 by <a
-                href="https://nostr.band/npub16jdfqgazrkapk0yrqm9rdxlnys7ck39c7zmdzxtxqlmmpxg04r0sd733sv"
-                target="_blank">@Lux</a></p>
+                    href="https://nostr.band/npub16jdfqgazrkapk0yrqm9rdxlnys7ck39c7zmdzxtxqlmmpxg04r0sd733sv"
+                    target="_blank">@Lux</a></p>
         </footer>
     </div>
 
@@ -442,7 +448,7 @@
                     for (const match of matches) {
                         try {
                             // Decode the bech32 entity to get the hex key or ID
-                            const decoded = NostrTools.nip19.decode(match.substring(1)); 
+                            const decoded = NostrTools.nip19.decode(match.substring(1));
 
                             const hexKey = decoded.data;
 
