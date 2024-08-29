@@ -5,7 +5,7 @@
 ## Features
 - **Anonymous Note Sending**: Generate a new key pair on each submission to ensure anonymity.
 - **Reply Chain**: Option to link notes in a threaded conversation for better context.
-- **Tagging**: Supports hashtags and mentions within notes..
+- **Tagging**: Supports hashtags and mentions within notes.
 - **Progressive Web App (PWA)**: Installable on mobile and desktop, with offline capabilities.
 
 ## Usage
@@ -13,6 +13,14 @@
 2. **Enable Reply Chain (Optional)**: Check the "Reply chain" option to link your notes in a threaded conversation.
 3. **Send Note**: Click the "Send Note" button to publish your note anonymously to the Nostr network.
 4. **View Note**: After submission, a link to view your note on [njump.me](https://njump.me/) will be provided.
+
+## IPFS
+Access the Anonostr web app through the decentralized IPFS network
+- https://white-sun-2491.on.fleek.co/ 
+
+Current IPFS Hash:
+
+QmQPRRbVfQg7GV1fiBf4Wcdh6g3f9q5WCPEYJ592UaUkrH
 
 ## Installation
 You can install **Anonostr** as a Progressive Web App (PWA) on your mobile or desktop device:
