@@ -1,3 +1,7 @@
+## v0.1.3 - 2024-08-30
+
+- Hotfix: graceful handling of failed relay connection
+
 ## v0.1.2 - 2024-08-30
 
 - Hotfix: duplicate event handling
