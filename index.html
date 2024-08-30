@@ -6,14 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anonostr | Anonymous Nostr Note Sender</title>
     <meta name="description"
-        content="Send anonymous notes to the Nostr network with Anonostr. Generate a new key pair for each submission, publish via select relays, and enjoy features like tagging, threading, and replies.">
+        content="Send anonymous notes to the Nostr network with Anonostr. Generate a new key pair for each submission, publish via select relays, and enjoy features like tagging, threading, quoting, and replies.">
     <!-- IPFS -->
     <link rel="alternate" href="ipfs://QmbxuM2qgDxMsbg26W1LN1mCMDZ8y9fAB4qjkp8vvFyUqW" title="Access via IPFS">
     <meta name="ipfs-hash" content="QmbxuM2qgDxMsbg26W1LN1mCMDZ8y9fAB4qjkp8vvFyUqW">
     <!-- Open Graph Meta Tags -->
     <meta property="og:title" content="Anonostr | Anonymous Nostr Note Sender">
     <meta property="og:description"
-        content="Send anonymous notes to the Nostr network with Anonostr. Generate a new key pair for each submission, publish via select relays, and enjoy features like tagging, threading, and replies.">
+        content="Send anonymous notes to the Nostr network with Anonostr. Generates and burns a new key pair for each submission, and supports features like tagging, threading, and replies.">
     <meta property="og:image" content="https://anonostr.com/images/anonostr-og.png">
     <meta property="og:url" content="https://anonostr.com">
     <meta property="og:type" content="website">
@@ -34,7 +34,7 @@
             background-color: #f4f4f4;
             color: #333;
         }
-
+    
         .container {
             max-width: 600px;
             margin: 0 auto;
@@ -43,7 +43,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-
+    
         .hero-section {
             display: flex;
             align-items: center;
@@ -51,65 +51,68 @@
             margin-bottom: 20px;
             gap: 20px;
         }
-
+    
         .hero {
             width: 50%;
             height: auto;
             object-fit: cover;
             border-radius: 8px;
         }
-
+    
         .desc-section {
             display: flex;
             justify-content: space-between;
             margin-bottom: 20px;
         }
-
+    
         h1 {
             flex: 1;
             text-align: center;
             margin: 0;
             font-size: 24px;
         }
-
+    
         @media (min-width: 601px) {
             h1 {
                 font-size: 48px;
             }
         }
-
+    
         @media (max-width: 600px) {
             .hero-section {
                 flex-direction: column;
                 align-items: center;
             }
-
+    
             .hero {
                 width: 50vw;
                 height: auto;
             }
-
+    
             h1 {
                 text-align: center;
                 margin-top: 10px;
                 font-size: 24px;
             }
         }
-
+    
         form {
             display: flex;
             flex-direction: column;
         }
-
+    
         label {
             margin-bottom: 5px;
             font-weight: bold;
         }
-
+    
+        textarea, input {
+            font-size: 16px;
+        }
+    
         textarea {
             width: 100%;
-            resize: both;
-            /* Allow resizing both horizontally and vertically */
+            resize: vertical;
             padding: 10px;
             margin-bottom: 15px;
             border-radius: 4px;
@@ -117,12 +120,11 @@
             min-height: 150px;
             box-sizing: border-box;
             overflow: auto;
-            /* Ensure scrollbars appear if content overflows */
         }
-
+    
         button {
             padding: 10px 15px;
-            background-color: #007bff;
+            background-color: #7f00ff;
             color: #fff;
             border: none;
             border-radius: 4px;
@@ -132,11 +134,15 @@
             position: relative;
         }
 
+        button:hover {
+            background-color: indigo;
+        }
+    
         button:disabled {
             background-color: #6c757d;
             cursor: not-allowed;
         }
-
+    
         .spinner {
             border: 2px solid #f3f3f3;
             border-radius: 50%;
@@ -151,65 +157,71 @@
             margin-left: -7px;
             display: none;
         }
-
+    
         @keyframes spin {
             0% {
                 transform: rotate(0deg);
             }
-
+    
             100% {
                 transform: rotate(360deg);
             }
         }
-
+    
         .note {
             margin-top: 20px;
             padding: 10px;
             border-radius: 4px;
             display: none;
         }
-
+    
         .note.success {
             background-color: #d4edda;
             color: #155724;
         }
-
+    
         .note.error {
             background-color: #f8d7da;
             color: #721c24;
         }
-
+    
         .note.warning {
             background-color: #fff3cd;
             color: #856404;
         }
-
+    
         .note a {
             color: #007bff;
             text-decoration: none;
         }
-
+    
         .note a:hover {
             text-decoration: underline;
         }
-
+    
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+    
         .checkbox-container {
             display: flex;
             align-items: center;
-            margin-bottom: 15px;
             position: relative;
         }
-
+    
         .checkbox-container input {
             margin-right: 10px;
             vertical-align: middle;
         }
-
+    
         .checkbox-container label {
             margin: 0;
             vertical-align: middle;
         }
-
+    
         .tooltip {
             margin-left: 8px;
             cursor: pointer;
@@ -218,7 +230,7 @@
             align-items: center;
             position: relative;
         }
-
+    
         .tooltip .tooltiptext {
             visibility: hidden;
             width: 200px;
@@ -235,7 +247,7 @@
             opacity: 0;
             transition: opacity 0.3s;
         }
-
+    
         .tooltip .tooltiptext::after {
             content: '';
             position: absolute;
@@ -246,33 +258,40 @@
             border-style: solid;
             border-color: #333 transparent transparent transparent;
         }
-
+    
         .tooltip:hover .tooltiptext {
             visibility: visible;
             opacity: 1;
         }
-
+    
+        @media (min-width: 601px) {
+            .checkbox-group {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+        }
+    
         footer {
             text-align: center;
             padding: 20px 0;
             background-color: #fff;
             margin-top: 20px;
         }
-
+    
         .github-buttons-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 10px;
         }
-
+    
         @media (min-width: 601px) {
             .github-buttons-container {
                 flex-direction: row;
                 justify-content: center;
             }
         }
-
+    
         footer a,
         footer button[data-npub] {
             color: #007bff;
@@ -282,12 +301,12 @@
             padding: 0;
             font: inherit;
         }
-
+    
         footer a:hover,
         footer button[data-npub]:hover {
             text-decoration: none;
         }
-
+    
         footer button[data-npub] {
             display: inline-block;
             height: 28px;
@@ -303,12 +322,12 @@
             vertical-align: middle;
             margin-top: -4px;
         }
-
+    
         footer button[data-npub]:hover {
             background-color: #1a2026;
             border-color: #3d444d;
         }
-
+    
         footer button[data-npub]:active {
             background-color: #1e7e34;
             border-color: #1c7430;
@@ -325,21 +344,40 @@
         </div>
         <!-- Desc Section -->
         <div class="desc-section">
-            <p><strong>Anonostr</strong> allows users to send anonymous notes to the Nostr network without revealing
-                their identity. The app generates a new key pair for each note submission and publishes the note using a
-                few select relays. It supports tagging, threading, and replying to existing notes.</p>
+            <p><strong>Anonostr</strong> allows users to send anonymous notes to the Nostr network without revealing their identity. For each note submission, the app generates a new key pair, sends the note through select relays, and then securely burns the key pair. It supports tagging, threading, quoting, and replying to existing notes.</p>
         </div>
 
         <form id="eventForm">
             <label for="note">Enter your note:</label>
             <textarea id="note" rows="6" placeholder="@npub1... or @note1... or #tag your note here"></textarea>
 
-            <div class="checkbox-container">
-                <input type="checkbox" id="replyChain">
-                <label for="replyChain">Reply chain</label>
-                <div class="tooltip">ℹ️
-                    <span class="tooltiptext">Enable this to link your notes as replies in consecutive order within a
-                        threaded conversation.</span>
+            <!-- Checkbox Group -->
+            <div style="font-size: 12px; color: grey; margin-top: 10px; margin-bottom: 10px;">
+                <strong>Optional:</strong>
+                </div>
+            <div class="checkbox-group">
+                <div class="checkbox-container">
+                    <input type="checkbox" id="replyChain">
+                    <label for="replyChain">Reply chain</label>
+                    <div class="tooltip">ℹ️
+                        <span class="tooltiptext">Enable this to link your notes as replies in a threaded conversation, maintaining the context within a linked chain of notes.</span>
+                    </div>
+                </div>
+
+                <div class="checkbox-container">
+                    <input type="checkbox" id="relayHop">
+                    <label for="relayHop">Relay hop</label>
+                    <div class="tooltip">ℹ️
+                        <span class="tooltiptext">Relay hopping adds obfuscation by spreading notes across different relays randomly, making it harder for any single relay to correlate and track the notes.</span>
+                    </div>
+                </div>
+
+                <div class="checkbox-container">
+                    <input type="checkbox" id="torRelays">
+                    <label for="torRelays">Tor relays</label>
+                    <div class="tooltip">ℹ️
+                        <span class="tooltiptext">Use only relays behind onion services for added anonymity.</span>
+                    </div>
                 </div>
             </div>
 
@@ -347,6 +385,12 @@
                 Send Note
                 <div class="spinner"></div>
             </button>
+
+            <!-- Relay information display -->
+            <div id="relayInfo" style="font-size: 12px; color: grey; margin-top: 10px;">
+                <strong>Relays being used:</strong>
+                <ul id="relayList"></ul>
+            </div>
         </form>
         <div id="statusNote" class="note"></div>
 
@@ -401,13 +445,22 @@
     <script src="https://cdn.jsdelivr.net/npm/nostr-zap@1.1.0"></script>
 
     <script>
-        const relays = [
+        // Default relays
+        const defaultRelays = [
             'wss://relay.damus.io',
             'wss://relay.primal.net',
             'wss://relay.nostr.band'
         ];
 
-        const rateLimitSeconds = 30; // 30 second delay between note sending
+        // Tor relays
+        const torRelays = [
+            'ws://oxtrdevav64z64yb7x6rjg4ntzqjhedm5b5zjqulugknhzr46ny2qbad.onion',
+            'ws://2jsnlhfnelig5acq6iacydmzdbdmg7xwunm4xl6qwbvzacw4lwrjmlyd.onion',
+            'wss://skzzn6cimfdv5e2phjc4yr5v7ikbxtn5f7dkwn5c7v47tduzlbosqmqd.onion',
+            'ws://nostrnetl6yd5whkldj3vqsxyyaq3tkuspy23a3qgx7cdepb4564qgqd.onion'
+        ];
+
+        const rateLimitSeconds = 30; // 30-second delay between note sending
         const localStorageKey = 'lastSubmitTime';
 
         let rootEventId = null; // Store the root event ID for threading
@@ -418,8 +471,37 @@
             const form = document.getElementById('eventForm');
             const noteInput = document.getElementById('note');
             const replyChainCheckbox = document.getElementById('replyChain');
+            const relayHopCheckbox = document.getElementById('relayHop');
+            const torRelaysCheckbox = document.getElementById('torRelays');
             const submitButton = form.querySelector('button');
             const spinner = submitButton.querySelector('.spinner');
+            const relayList = document.getElementById('relayList');
+
+            // Function to update the relay list display
+            function updateRelayList() {
+                relayList.innerHTML = ''; // Clear current list
+
+                let selectedRelays;
+                if (torRelaysCheckbox.checked) {
+                    selectedRelays = torRelays;
+                } else {
+                    selectedRelays = defaultRelays;
+                }
+
+                // Populate the relay list
+                selectedRelays.forEach(relayUrl => {
+                    const relayItem = document.createElement('li');
+                    relayItem.textContent = relayUrl;
+                    relayList.appendChild(relayItem);
+                });
+            }
+
+            // Event listeners to update relay list when the checkboxes change
+            torRelaysCheckbox.addEventListener('change', updateRelayList);
+            relayHopCheckbox.addEventListener('change', updateRelayList);
+
+            // Initial invocation to show the correct relays on page load
+            updateRelayList();
 
             form.addEventListener('submit', async (event) => {
                 event.preventDefault();
@@ -456,6 +538,9 @@
                 const tags = [];
                 const bech32Regex = /@([a-z]{1,}[1][qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,})/g;
 
+                let isRootSet = false;
+                let firstMatchIsNote = false;
+
                 // Handle mentions and note references: @npub..., @nprofile..., @note...
                 const matches = note.match(bech32Regex);
                 if (matches) {
@@ -463,22 +548,24 @@
                         try {
                             // Decode the bech32 entity to get the hex key or ID
                             const decoded = NostrTools.nip19.decode(match.substring(1));
-
                             const hexKey = decoded.data;
 
-                            // Add the hex key to the tags array based on its type
-                            if (decoded.type === 'npub' || decoded.type === 'nprofile') {
-                                tags.push(["p", hexKey, "", "mention"]);
-                            } else if (decoded.type === 'note') {
-                                tags.push(["e", hexKey, "", "reply"]);
-                                // If this is the first reply in the chain, set it as the root
-                                if (!rootEventId) {
+                            if (decoded.type === 'note') {
+                                // If the @note... is at the beginning, treat it as a reply and don't convert it to nostr:note
+                                if (!isRootSet && note.startsWith(match)) {
                                     rootEventId = hexKey;
+                                    tags.unshift(["e", hexKey, "", "root"]); // Ensure root event is first
+                                    note = note.replace(match, '').trim();
+                                    isRootSet = true;
+                                    firstMatchIsNote = true;
+                                } else {
+                                    // If @note... is not at the beginning, convert to nostr:note
+                                    tags.push(["e", hexKey, "", "mention"]);
+                                    note = note.replace(match, `nostr:${match.substring(1)}`);
                                 }
+                            } else if (decoded.type === 'npub' || decoded.type === 'nprofile') {
+                                tags.push(["p", hexKey, "", "mention"]);
                             }
-
-                            // Replace the mention with the shorter nostr:bech32 format
-                            note = note.replace(match, `nostr:${match.substring(1)}`);
                         } catch (error) {
                             console.error('Error decoding bech32:', error);
                         }
@@ -490,15 +577,11 @@
                     // Add the last event ID as the "reply"
                     tags.push(["e", lastEventId, "", "reply"]);
 
-                    // If there's no root event ID, set the last event ID as root
-                    if (!rootEventId) {
-                        rootEventId = lastEventId;
+                    // Ensure the root event ID is included if it wasn't set above
+                    if (rootEventId && !isRootSet) {
+                        tags.unshift(["e", rootEventId, "", "root"]);
+                        isRootSet = true;
                     }
-                }
-
-                // Add the root event ID if it exists
-                if (rootEventId) {
-                    tags.push(["e", rootEventId, "", "root"]);
                 }
 
                 // Handle hashtags: #tag
@@ -531,17 +614,26 @@
                 console.log('Signed Event:', signedEvent);
 
                 try {
-                    await Promise.all(relays.map(async (relayUrl) => {
-                        // Connect to the relay
-                        const relay = new NostrTools.Relay(relayUrl);
-                        await relay.connect();
+                    let selectedRelays;
 
-                        // Publish the signed event
-                        await relay.publish(signedEvent);
+                    if (torRelaysCheckbox.checked) {
+                        // Use Tor relays if the checkbox is checked
+                        selectedRelays = torRelays;
+                    } else {
+                        // Otherwise, use default relays
+                        selectedRelays = defaultRelays;
+                    }
 
-                        // Close the relay connection
-                        relay.close();
-                    }));
+                    if (relayHopCheckbox.checked) {
+                        // If relay hop is checked, randomly select a single relay
+                        const randomRelay = selectedRelays[Math.floor(Math.random() * selectedRelays.length)];
+                        await sendNoteToRelay(randomRelay, signedEvent);
+                    } else {
+                        // Otherwise, publish to all selected relays
+                        await Promise.all(selectedRelays.map(async (relayUrl) => {
+                            await sendNoteToRelay(relayUrl, signedEvent);
+                        }));
+                    }
 
                     // Create a link to view the event on njump.me
                     const eventId = signedEvent.id;
@@ -551,8 +643,18 @@
                     // Clear the note input field after successful submission
                     noteInput.value = '';
                 } catch (error) {
-                    console.error('Failed to send note:', error);
-                    showNote('Failed to send anon note. Please try again.', 'error');
+                    if (error.message.includes('duplicate')) {
+                        // Handle the duplicate error as a success case
+                        console.warn('Duplicate event detected. Treating as success.');
+
+                        // Create a link to view the event on njump.me
+                        const eventId = signedEvent.id;
+                        const eventLink = `https://njump.me/${eventId}`;
+                        showNote(`Anon note sent successfully! <a href="${eventLink}" target="_blank">View Event</a>`, 'success');
+                    } else {
+                        console.error('Failed to send note:', error);
+                        showNote('Failed to send anon note. Please try again.', 'error');
+                    }
                 } finally {
                     // Reset the form state (hide spinner, enable button)
                     resetFormState();
@@ -568,6 +670,13 @@
                 statusNote.innerHTML = note;
                 statusNote.className = `note ${type}`;
                 statusNote.style.display = note ? 'block' : 'none';
+            }
+
+            async function sendNoteToRelay(relayUrl, event) {
+                const relay = new NostrTools.Relay(relayUrl);
+                await relay.connect();
+                await relay.publish(event);
+                relay.close();
             }
         });
     </script>

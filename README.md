@@ -1,18 +1,22 @@
 # Anonostr - Anonymous Nostr Note Sender
 
-**Anonostr** allows users to send anonymous notes to the [Nostr](https://nostr.com/) network without revealing their identity. The app generates a new key pair for each note submission and publishes the note using a few select relays. It supports tagging, threading, and replying to existing notes.
+**Anonostr** allows users to send anonymous notes to the [Nostr](https://nostr.com/) network without revealing their identity. For each note submission, the app generates a new key pair, sends the note through select relays, and then securely discards the key pair. It supports tagging, threading, quoting, and replying to existing notes.
 
 ## Features
-- **Anonymous Note Sending**: Generate a new key pair on each submission to ensure anonymity.
+- **Anonymous Note Sending**: Generates and burns a new key pair on each submission to ensure anonymity.
 - **Reply Chain**: Option to link notes in a threaded conversation for better context.
+- **Relay Hop**: Adds obfuscation by spreading notes across different relays randomly.
+- **Tor Relays**: Supports using onion service relays.
 - **Tagging**: Supports hashtags and mentions within notes.
 - **Progressive Web App (PWA)**: Installable on mobile and desktop, with offline capabilities.
 
 ## Usage
 1. **Enter Your Note**: Write your note in the text area provided. You can mention other users or notes using [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md) compatible identifiers such as `@npub...`, `@note...`, or `@nprofile...`.
 2. **Enable Reply Chain (Optional)**: Check the "Reply chain" option to link your notes in a threaded conversation.
-3. **Send Note**: Click the "Send Note" button to publish your note anonymously to the Nostr network.
-4. **View Note**: After submission, a link to view your note on [njump.me](https://njump.me/) will be provided.
+3. **Enable Relay Hop (Optional)**: Check the "Relay hop" option to make it harder for any single relay to correlate and track the notes.
+4. **Enable Tor Relays (Optional)**: Check the "Tor relays" option to only use relays exposed through onion services.
+5. **Send Note**: Click the "Send Note" button to publish your note anonymously to the Nostr network.
+6. **View Note**: After submission, a link to view your note on [njump.me](https://njump.me/) will be provided.
 
 ## IPFS
 Access the Anonostr web app through the decentralized IPFS network:
@@ -41,8 +45,6 @@ Contributions are welcome! Please follow these steps:
 
 ## Roadmap
 - Support for DMs (kind 4)
-- Relay hopping
-- TOR relays option
 - Bloom and/or media upload
 
 ## Links
