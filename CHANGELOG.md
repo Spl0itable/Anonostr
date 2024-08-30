@@ -1,3 +1,7 @@
+## v0.1.4 - 2024-08-30
+
+- Hotfix: tor relays supported with relay hopping
+
 ## v0.1.3 - 2024-08-30
 
 - Hotfix: graceful handling of failed relay connection
