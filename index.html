@@ -523,9 +523,6 @@
                     return;
                 }
 
-                // Update the last submit time in localStorage
-                localStorage.setItem(localStorageKey, currentTime);
-
                 // Reset the status note and show the spinner
                 showNote('', '');
                 spinner.style.display = 'inline-block';
@@ -631,19 +628,38 @@
                         selectedRelays = defaultRelays;
                     }
 
+                    let relaySuccess = false;
+
                     if (relayHopCheckbox.checked) {
                         // If relay hop is checked, randomly select a single relay
-                        const randomRelay = selectedRelays[Math.floor(Math.random() * selectedRelays.length)];
-                        const relayResult = await sendNoteToRelay(randomRelay, signedEvent);
+                        let availableRelays = [...selectedRelays];
 
-                        if (!relayResult.success) {
-                            showNote('Relay hopping failed. Please try again later.', 'error');
-                        } else {
-                            const eventId = signedEvent.id;
-                            const eventLink = `https://njump.me/${eventId}`;
-                            showNote(`Anon note sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success');
-                            noteInput.value = '';
+                        while (!relaySuccess && availableRelays.length > 0) {
+                            const randomIndex = Math.floor(Math.random() * availableRelays.length);
+                            const randomRelay = availableRelays[randomIndex];
+
+                            const relayResult = await sendNoteToRelay(randomRelay, signedEvent);
+
+                            if (relayResult.success) {
+                                relaySuccess = true;
+                                const eventId = signedEvent.id;
+                                const eventLink = `https://njump.me/${eventId}`;
+                                showNote(`Anon note sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success');
+                                noteInput.value = '';
+
+                                // Update the last submit time in localStorage only on success
+                                localStorage.setItem(localStorageKey, currentTime);
+                            } else {
+                                // Remove the failed relay from the list
+                                availableRelays.splice(randomIndex, 1);
+                                console.warn(`Relay hop failed for relay: ${randomRelay}. Trying another relay...`);
+                            }
                         }
+
+                        if (!relaySuccess) {
+                            showNote('Relay hopping failed for all relays. Please try again later.', 'error');
+                        }
+
                     } else {
                         // Otherwise, publish to all selected relays
                         const relayResults = await Promise.all(
@@ -661,6 +677,9 @@
                             const eventLink = `https://njump.me/${eventId}`;
                             showNote(`Anon note sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success');
                             noteInput.value = '';
+
+                            // Update the last submit time in localStorage only on success
+                            localStorage.setItem(localStorageKey, currentTime);
                         }
                     }
                 } catch (error) {
