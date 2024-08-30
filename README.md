@@ -1,6 +1,6 @@
 # Anonostr - Anonymous Nostr Note Sender
 
-**Anonostr** allows users to send anonymous notes to the [Nostr](https://nostr.com/) network without revealing their identity. For each note submission, the app generates a new key pair, sends the note through select relays, and then securely discards the key pair. It supports tagging, threading, quoting, and replying to existing notes.
+**Anonostr** allows users to send anonymous notes to the [Nostr](https://nostr.com/) network without revealing their identity. For each note submission, the app generates a new key pair, sends the note through select relays, and then securely burns the key pair. It supports tagging, threading, quoting, and replying to existing notes.
 
 ## Features
 - **Anonymous Note Sending**: Generates and burns a new key pair on each submission to ensure anonymity.
