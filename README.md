@@ -28,7 +28,7 @@ Access the Anonostr web app through the decentralized IPFS network:
 
 Current IPFS Hash:
 
-- QmXHZsxwtoG6ofin8HsG54MHmScHLTbEqVFQoischPst2i
+- QmPgAEuSbX7jcY7U9LfXUmYAnW21gezV2JFdZjGLpAxdzn
 
 ## Installation
 You can install **Anonostr** as a Progressive Web App (PWA) on your mobile or desktop device:
