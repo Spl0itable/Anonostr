@@ -1,9 +1,12 @@
-# Anonostr - Anonymous Nostr Note Sender
+![Anonostr](images/app-showcase.png)
+
+# Anonostr - Anonymous Nostr Client
 
 **Anonostr** allows users to send anonymous notes to the [Nostr](https://nostr.com/) network without revealing their identity. For each note submission, the app generates a new key pair, sends the note through select relays, and then securely burns the key pair. It supports tagging, threading, quoting, and replying to existing notes.
 
 ## Features
 - **Anonymous Note Sending**: Generates and burns a new key pair on each submission to ensure anonymity.
+- **Tweetdeck View**: On desktop, get a column view with Global and Replies.
 - **Reply Chain**: Option to link notes in a threaded conversation for better context.
 - **Relay Hop**: Adds obfuscation by spreading notes across different relays randomly.
 - **Tor Relays**: Supports using onion service relays.
@@ -46,6 +49,9 @@ Contributions are welcome! Please follow these steps:
 ## Roadmap
 - Support for DMs (kind 4)
 - Bloom and/or media upload
+- Zaps and reactions
+- Search and event views
+- Better styling on desktop
 
 ## Links
 - **Live Demo**: [Anonostr.com](https://anonostr.com/)

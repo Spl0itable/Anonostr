@@ -1,3 +1,7 @@
+## v1.1.5 - 2024-08-31
+
+- New: tweetdeck style view on desktop
+
 ## v0.1.5 - 2024-08-30
 
 - Hotfix: improved relay hopping logic
