@@ -39,7 +39,7 @@
         }
 
         .sidebar {
-            width: 300px;
+            width: 400px;
             background-color: #fff;
             padding: 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -397,14 +397,23 @@
             gap: 10px;
         }
 
-        .timeline-item p {
-            margin: 0;
-            font-size: 14px;
-            line-height: 1.5;
+        .timeline-header {
+            display: flex;
+            align-items: center;
         }
 
-        .timeline-item small {
-            color: #6c757d;
+        .timeline-header .author {
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+
+        .timeline-header .timestamp {
+            font-size: 12px;
+            color: #888;
+            margin-left: auto;
         }
 
         .reply-icon {
@@ -420,23 +429,6 @@
             color: indigo;
         }
 
-        .timeline-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .timeline-header .author {
-            font-weight: bold;
-            font-size: 16px;
-            color: #333;
-        }
-
-        .timeline-header .timestamp {
-            font-size: 12px;
-            color: #888;
-        }
-
         .reply-item {
             background-color: #fff;
             padding: 15px;
@@ -448,19 +440,10 @@
             gap: 10px;
         }
 
-        .reply-item p {
-            margin: 0;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        .reply-item small {
-            color: #6c757d;
-        }
-
-        .reply-item .reply-icon {
-            bottom: 10px;
-            left: 10px;
+        .replies-feed {
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 15px;
         }
 
         .timeline-feed {
@@ -469,14 +452,162 @@
             gap: 15px;
         }
 
-        .replies-feed {
-            display: flex;
-            flex-direction: column-reverse;
-            gap: 15px;
-        }
-
         .send-button {
             width: 100%;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            image-rendering: pixelated;
+            background-color: #ccc;
+            /* Fallback background color */
+            cursor: pointer;
+            /* Add this line to make the cursor a pointer */
+        }
+
+        /* Profile Modal Styles */
+        .profile-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+            /* Enable scrolling */
+        }
+
+        .profile-modal-content {
+            background-color: #fff;
+            width: 90%;
+            max-height: 90%;
+            max-width: 900px;
+            border-radius: 8px;
+            overflow-y: auto;
+            /* Allow content to scroll */
+            text-align: center;
+            padding-bottom: 20px;
+            position: relative;
+            /* Make close button absolute to this container */
+        }
+
+        .profile-banner {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            background: url('./images/anon-banner.png') center/cover no-repeat;
+            /* Fallback banner */
+        }
+
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin-top: -50px;
+            border: 5px solid #fff;
+            image-rendering: pixelated;
+            /* Ensures pixel art avatars remain crisp */
+            background-color: #ccc;
+            /* Fallback background color */
+        }
+
+        .profile-info {
+            margin-top: 20px;
+            padding: 0 20px;
+        }
+
+        .profile-info h2 {
+            margin: 10px 0;
+            font-size: 24px;
+        }
+
+        .profile-info p {
+            margin: 5px 0;
+            color: #666;
+        }
+
+        .profile-feed {
+            margin-top: 20px;
+            padding: 0 20px;
+        }
+
+        .profile-feed p,
+        .reply-icon {
+            text-align: left;
+            /* Align text to the left */
+        }
+
+        .profile-feed .timeline-item {
+            margin-bottom: 20px;
+        }
+
+        .reply-form {
+            width: 100%;
+        }
+
+        .reply-textarea {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        .send-reply-button {
+            width: 100%;
+            padding: 10px 15px;
+            background-color: #7f00ff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        .send-reply-button:hover {
+            background-color: indigo;
+        }
+
+        .send-reply-button .spinner {
+            border: 2px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 2px solid #007bff;
+            width: 14px;
+            height: 14px;
+            animation: spin 1s linear infinite;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-top: -7px;
+            margin-left: -7px;
+            display: none;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 24px;
+            color: #888;
+            background: #fff;
+            border-radius: 8px;
+            height: 24px;
+            width: 24px;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
     </style>
 </head>
@@ -579,6 +710,24 @@
         </div>
     </div>
 
+    <!-- Profile Modal -->
+    <div class="profile-modal" id="profileModal">
+        <div class="profile-modal-content">
+            <span class="close-modal" id="closeModal">&times;</span>
+            <img src="" alt="Banner Image" class="profile-banner" id="profileBanner">
+            <img src="" alt="Avatar" class="profile-avatar" id="profileAvatar">
+            <div class="profile-info" id="profileInfo">
+                <h2 id="profileName"></h2>
+                <p id="profileNip05"></p>
+                <p id="profileAbout"></p>
+                <p id="profileLnurl"></p>
+            </div>
+            <div class="profile-feed" id="profileFeed">
+                <!-- User's notes will be dynamically injected here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Service Worker Registration -->
     <script>
         if ('serviceWorker' in navigator) {
@@ -614,6 +763,15 @@
             const relayList = document.getElementById('relayList');
             const timelineFeed = document.getElementById('timelineFeed');
             const repliesFeed = document.getElementById('repliesFeed');
+            const profileModal = document.getElementById('profileModal');
+            const closeModal = document.getElementById('closeModal');
+            const profileBanner = document.getElementById('profileBanner');
+            const profileAvatar = document.getElementById('profileAvatar');
+            const profileName = document.getElementById('profileName');
+            const profileNip05 = document.getElementById('profileNip05');
+            const profileAbout = document.getElementById('profileAbout');
+            const profileLnurl = document.getElementById('profileLnurl');
+            const profileFeed = document.getElementById('profileFeed');
 
             // Default relays
             const defaultRelays = [
@@ -633,6 +791,7 @@
             const localStorageKey = 'lastSubmitTime';
             const eventIdsStorageKey = 'submittedEventIds'; // Key to store event IDs
             const seenEventIds = new Set(); // To track and deduplicate events
+            const profileCache = {}; // Cache for display names and avatars
 
             let rootEventId = null; // Store the root event ID for threading
             let lastEventId = null; // Store the ID of the last event to reply to it in the chain
@@ -896,33 +1055,55 @@
                 }
             }
 
+            // Helper function to convert image URLs to <img> tags
+            function convertImageUrlsToImages(content) {
+                // Regular expression to match image URLs (ending with common image extensions)
+                const imageRegex = /(https?:\/\/\S+\.(?:png|jpg|jpeg|gif|bmp|webp|svg|tiff))/gi;
+
+                // Replace image URLs with <img> tags
+                return content.replace(imageRegex, (url) => {
+                    return `<img src="${url}" alt="image" style="max-width: 100%; height: auto; display: block; margin: 10px 0;">`;
+                });
+            }
+
             function createTimelineItem(event) {
                 const timelineItem = document.createElement('div');
                 timelineItem.className = 'timeline-item';
 
                 const authorHex = event.pubkey;
 
-                // Truncate the author's pubkey
-                const truncatedAuthor = `${authorHex.slice(0, 6)}...${authorHex.slice(-4)}`;
+                // Get the author's display name and avatar
+                const { name: authorName, avatar: authorAvatar } = getProfile(authorHex);
 
                 // Convert the Unix timestamp to a human-readable format
                 const timestamp = new Date(event.created_at * 1000).toLocaleString();
 
+                // Convert image URLs in the content to <img> tags
+                const contentWithImages = convertImageUrlsToImages(event.content);
+
                 timelineItem.innerHTML = `
-                <div class="timeline-header">
-                    <span class="author">${truncatedAuthor}</span>
-                    <span class="timestamp">${timestamp}</span>
-                </div>
-                <p>${event.content}</p>
-                <span class="reply-icon" data-note-id="${event.id}">↩️</span>
-            `;
+        <div class="timeline-header">
+            <img src="${authorAvatar}" alt="${authorName}'s avatar" class="avatar">
+            <span class="author" data-pubkey="${authorHex}">${authorName}</span>
+            <span class="timestamp">${timestamp}</span>
+        </div>
+        <p>${contentWithImages}</p>
+        <span class="reply-icon" data-note-id="${event.id}">↩️</span>
+    `;
 
                 const replyIcon = timelineItem.querySelector('.reply-icon');
                 replyIcon.addEventListener('click', () => {
-                    // Set the rootEventId and update the note input
-                    rootEventId = replyIcon.getAttribute('data-note-id');
-                    noteInput.value = `@${NostrTools.nip19.noteEncode(rootEventId)} ` + noteInput.value;
-                    noteInput.focus();
+                    handleReplyIconClick(timelineItem, event.id);
+                });
+
+                const authorNameElement = timelineItem.querySelector('.author');
+                authorNameElement.addEventListener('click', () => {
+                    openProfileModal(authorHex);
+                });
+
+                const avatarElement = timelineItem.querySelector('.avatar');
+                avatarElement.addEventListener('click', () => {
+                    openProfileModal(authorHex);
                 });
 
                 return timelineItem;
@@ -934,30 +1115,265 @@
 
                 const authorHex = event.pubkey;
 
-                // Truncate the author's pubkey
-                const truncatedAuthor = `${authorHex.slice(0, 6)}...${authorHex.slice(-4)}`;
+                // Get the author's display name and avatar
+                const { name: authorName, avatar: authorAvatar } = getProfile(authorHex);
 
                 // Convert the Unix timestamp to a human-readable format
                 const timestamp = new Date(event.created_at * 1000).toLocaleString();
 
+                // Convert image URLs in the content to <img> tags
+                const contentWithImages = convertImageUrlsToImages(event.content);
+
                 replyItem.innerHTML = `
-                <div class="timeline-header">
-                    <span class="author">${truncatedAuthor}</span>
-                    <span class="timestamp">${timestamp}</span>
-                </div>
-                <p>${event.content}</p>
-                <span class="reply-icon" data-note-id="${event.id}">↩️</span>
-            `;
+        <div class="timeline-header">
+            <img src="${authorAvatar}" alt="${authorName}'s avatar" class="avatar">
+            <span class="author" data-pubkey="${authorHex}">${authorName}</span>
+            <span class="timestamp">${timestamp}</span>
+        </div>
+        <p>${contentWithImages}</p>
+        <span class="reply-icon" data-note-id="${event.id}">↩️</span>
+    `;
 
                 const replyIcon = replyItem.querySelector('.reply-icon');
                 replyIcon.addEventListener('click', () => {
-                    // Set the rootEventId and update the note input
-                    rootEventId = replyIcon.getAttribute('data-note-id');
-                    noteInput.value = `@${NostrTools.nip19.noteEncode(rootEventId)} ` + noteInput.value;
-                    noteInput.focus();
+                    handleReplyIconClick(replyItem, event.id);
+                });
+
+                const authorNameElement = replyItem.querySelector('.author');
+                authorNameElement.addEventListener('click', () => {
+                    openProfileModal(authorHex);
+                });
+
+                const avatarElement = replyItem.querySelector('.avatar');
+                avatarElement.addEventListener('click', () => {
+                    openProfileModal(authorHex);
                 });
 
                 return replyItem;
+            }
+
+            function handleReplyIconClick(timelineItem, eventId) {
+                // Check if a reply textarea already exists
+                let replyTextarea = timelineItem.querySelector('.reply-textarea');
+                let sendReplyButton = timelineItem.querySelector('.send-reply-button');
+                let replyForm = timelineItem.querySelector('.reply-form');
+
+                if (!replyTextarea) {
+                    // Create a new reply form with textarea, checkboxes, and button
+                    replyForm = document.createElement('div');
+                    replyForm.className = 'reply-form';
+
+                    replyTextarea = document.createElement('textarea');
+                    replyTextarea.className = 'reply-textarea';
+                    replyTextarea.rows = 4;
+                    replyTextarea.placeholder = 'Write your reply here...';
+
+                    sendReplyButton = document.createElement('button');
+                    sendReplyButton.className = 'send-reply-button';
+                    sendReplyButton.textContent = 'Send Reply';
+
+                    // Create checkboxes for reply options with tooltips
+                    const replyOptions = document.createElement('div');
+                    replyOptions.className = 'checkbox-group';
+
+                    replyOptions.innerHTML = `
+                        <div class="checkbox-container">
+                            <input type="checkbox" class="reply-chain-checkbox">
+                            <label for="replyChain">Reply chain</label>
+                            <div class="tooltip">ℹ️
+                                <span class="tooltiptext">Enable this to link your notes as replies in a threaded conversation, maintaining the context within a linked chain of notes.</span>
+                            </div>
+                        </div>
+                        <div class="checkbox-container">
+                            <input type="checkbox" class="relay-hop-checkbox">
+                            <label for="relayHop">Relay hop</label>
+                            <div class="tooltip">ℹ️
+                                <span class="tooltiptext">Relay hopping adds obfuscation by spreading notes across different relays randomly, making it harder for any single relay to correlate and track the notes.</span>
+                            </div>
+                        </div>
+                        <div class="checkbox-container">
+                            <input type="checkbox" class="tor-relays-checkbox">
+                            <label for="torRelays">Tor relays</label>
+                            <div class="tooltip">ℹ️
+                                <span class="tooltiptext">Use only relays behind onion services for added anonymity.</span>
+                            </div>
+                        </div>
+                    `;
+
+                    // Append the textarea, checkboxes, and button to the reply form
+                    replyForm.appendChild(replyTextarea);
+                    replyForm.appendChild(replyOptions);
+                    replyForm.appendChild(sendReplyButton);
+
+                    // Append the reply form to the timeline item
+                    timelineItem.appendChild(replyForm);
+
+                    // Add event listener to the send button
+                    sendReplyButton.addEventListener('click', () => {
+                        sendReply(replyTextarea.value, eventId, timelineItem, replyForm);
+                    });
+                } else {
+                    // Toggle the visibility of the existing reply form
+                    const isHidden = replyForm.style.display === 'none';
+                    replyForm.style.display = isHidden ? 'block' : 'none';
+                }
+            }
+
+            async function sendReply(content, parentId, timelineItem, replyForm) {
+                const replyStatusNote = replyForm.querySelector('.note') || document.createElement('div');
+                replyStatusNote.className = 'note';
+                replyStatusNote.style.display = 'none';
+                replyForm.appendChild(replyStatusNote);
+
+                const sendReplyButton = replyForm.querySelector('.send-reply-button');
+                const spinner = document.createElement('div');
+                spinner.className = 'spinner';
+                sendReplyButton.appendChild(spinner);
+
+                try {
+                    const currentTime = Math.floor(Date.now() / 1000);
+                    const lastSubmitTime = parseInt(localStorage.getItem(localStorageKey), 10) || 0;
+                    const timeSinceLastSubmit = currentTime - lastSubmitTime;
+
+                    if (timeSinceLastSubmit < rateLimitSeconds) {
+                        const timeLeft = rateLimitSeconds - timeSinceLastSubmit;
+                        showReplyNote(`Please wait ${timeLeft} second(s) before submitting again.`, 'warning', replyStatusNote);
+                        return;
+                    }
+
+                    // Show spinner and disable the button
+                    spinner.style.display = 'inline-block';
+                    sendReplyButton.disabled = true;
+
+                    // Generate a new key pair for the reply
+                    const sk = NostrTools.generateSecretKey();
+                    const pubKey = NostrTools.getPublicKey(sk);
+
+                    const tags = [["e", parentId, "", "reply"]]; // Tag the reply to the parent event
+
+                    const replyChainChecked = replyForm.querySelector('.reply-chain-checkbox').checked;
+                    const relayHopChecked = replyForm.querySelector('.relay-hop-checkbox').checked;
+                    const torRelaysChecked = replyForm.querySelector('.tor-relays-checkbox').checked;
+
+                    // If reply chain is enabled and there's a last event ID, add it as a reply
+                    if (replyChainChecked && lastEventId) {
+                        tags.push(["e", lastEventId, "", "reply"]);
+                        if (rootEventId && !tags.some(tag => tag[1] === rootEventId)) {
+                            tags.unshift(["e", rootEventId, "", "root"]);
+                        }
+                    }
+
+                    const eventTemplate = {
+                        kind: 1,
+                        pubkey: pubKey,
+                        created_at: Math.floor(Date.now() / 1000),
+                        tags: tags,
+                        content: content
+                    };
+
+                    console.log('Reply Event Template:', eventTemplate);
+
+                    // Finalize the event (assigns the event ID, pubkey, and signs it)
+                    const signedEvent = NostrTools.finalizeEvent(eventTemplate, sk);
+                    const replyEventId = signedEvent.id;
+
+                    console.log('Signed Reply Event:', signedEvent);
+
+                    try {
+                        let selectedRelays;
+
+                        if (torRelaysChecked) {
+                            // Use Tor relays if the checkbox is checked
+                            selectedRelays = torRelays;
+                        } else {
+                            // Otherwise, use default relays
+                            selectedRelays = defaultRelays;
+                        }
+
+                        let relaySuccess = false;
+
+                        if (relayHopChecked) {
+                            // If relay hop is checked, randomly select a single relay
+                            let availableRelays = [...selectedRelays];
+
+                            while (!relaySuccess && availableRelays.length > 0) {
+                                const randomIndex = Math.floor(Math.random() * availableRelays.length);
+                                const randomRelay = availableRelays[randomIndex];
+
+                                const relayResult = await sendNoteToRelay(randomRelay, signedEvent);
+
+                                if (relayResult.success) {
+                                    relaySuccess = true;
+                                    const eventLink = `https://njump.me/${replyEventId}`;
+                                    showReplyNote(`Reply sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
+                                    timelineItem.querySelector('.reply-textarea').value = '';
+
+                                    // Save the event ID in localStorage
+                                    saveEventId(replyEventId);
+
+                                    // Update the last submit time in localStorage only on success
+                                    localStorage.setItem(localStorageKey, currentTime);
+
+                                    // Renew subscriptions to include the new event ID
+                                    renewReplySubscriptions();
+                                } else {
+                                    // Remove the failed relay from the list
+                                    availableRelays.splice(randomIndex, 1);
+                                    console.warn(`Relay hop failed for relay: ${randomRelay}. Trying another relay...`);
+                                }
+                            }
+
+                            if (!relaySuccess) {
+                                showReplyNote('Relay hopping failed for all relays. Please try again later.', 'error', replyStatusNote);
+                            }
+
+                        } else {
+                            // Otherwise, publish to all selected relays
+                            const relayResults = await Promise.all(
+                                selectedRelays.map(relayUrl => sendNoteToRelay(relayUrl, signedEvent))
+                            );
+
+                            const successfulRelays = relayResults.filter(result => result.success).length;
+
+                            if (successfulRelays === 0) {
+                                // If no relays were successful
+                                showReplyNote('No relays available. Please try again later.', 'error', replyStatusNote);
+                            } else {
+                                const eventLink = `https://njump.me/${replyEventId}`;
+                                showReplyNote(`Reply sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
+                                timelineItem.querySelector('.reply-textarea').value = '';
+
+                                // Save the event ID in localStorage
+                                saveEventId(replyEventId);
+
+                                // Update the last submit time in localStorage only on success
+                                localStorage.setItem(localStorageKey, currentTime);
+
+                                // Renew subscriptions to include the new event ID
+                                renewReplySubscriptions();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Failed to send reply:', error);
+                        showReplyNote('Failed to send reply. Please try again.', 'error', replyStatusNote);
+                    } finally {
+                        // Hide the spinner and enable the button
+                        spinner.style.display = 'none';
+                        sendReplyButton.disabled = false;
+                    }
+                } catch (error) {
+                    console.error('Error in reply submission process:', error);
+                    showReplyNote('An unexpected error occurred. Please try again.', 'error', replyStatusNote);
+                    // Hide the spinner and enable the button
+                    spinner.style.display = 'none';
+                    sendReplyButton.disabled = false;
+                }
+            }
+
+            function showReplyNote(note, type, replyStatusNote) {
+                replyStatusNote.innerHTML = note;
+                replyStatusNote.className = `note ${type}`;
+                replyStatusNote.style.display = note ? 'block' : 'none';
             }
 
             function subscribeToRelay(relayUrl) {
@@ -981,13 +1397,25 @@
                     ]);
                     ws.send(reqMessage);
                     console.log(`Subscribed to relay ${relayUrl} with message: ${reqMessage}`);
+
+                    // Subscribe to kind 0 events to get display names and avatars
+                    const profileReqMessage = JSON.stringify([
+                        "REQ",
+                        generateRandomHex(32),
+                        { kinds: [0] }
+                    ]);
+                    ws.send(profileReqMessage);
+                    console.log(`Subscribed to relay ${relayUrl} for user profiles with message: ${profileReqMessage}`);
                 };
 
                 ws.onmessage = (event) => {
                     const msg = JSON.parse(event.data);
                     if (msg[0] === "EVENT") {
                         const nostrEvent = msg[2];
-                        if (!seenEventIds.has(nostrEvent.id)) {
+                        if (nostrEvent.kind === 0) {
+                            // Handle kind 0 events to cache display names and avatars
+                            cacheProfile(nostrEvent);
+                        } else if (!seenEventIds.has(nostrEvent.id)) {
                             seenEventIds.add(nostrEvent.id);
                             const newTimelineItem = createTimelineItem(nostrEvent);
 
@@ -1004,6 +1432,157 @@
                     console.log(`Disconnected from relay: ${relayUrl}`);
                     delete wsRelays[relayUrl];
                 };
+            }
+
+            function cacheProfile(event) {
+                const pubkey = event.pubkey;
+                const profile = JSON.parse(event.content);
+
+                profileCache[pubkey] = {
+                    name: profile.name || `${pubkey.slice(0, 6)}...${pubkey.slice(-4)}`,
+                    avatar: profile.picture || generatePixelArtAvatar(pubkey), // Generate avatar if none exists
+                    banner: profile.banner || './images/anon-banner.png', // Fallback banner image
+                    nip05: profile.nip05 || '',
+                    about: profile.about || '',
+                    lnurl: profile.lud16 || profile.lud06 || ''
+                };
+            }
+
+            function getProfile(pubkey) {
+                if (profileCache[pubkey]) {
+                    return profileCache[pubkey];
+                } else {
+                    // Return a default profile if not cached
+                    return {
+                        name: `${pubkey.slice(0, 6)}...${pubkey.slice(-4)}`,
+                        avatar: generatePixelArtAvatar(pubkey),
+                        banner: './images/anon-banner.png', // Fallback banner image
+                        nip05: '',
+                        about: '',
+                        lnurl: ''
+                    };
+                }
+            }
+
+            function generatePixelArtAvatar(seed) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const size = 8; // 8x8 grid
+                const scale = 12; // Scale factor to make the avatar larger
+                const avatarSize = 40; // Final avatar size (40x40 pixels)
+                const hash = hashString(seed);
+
+                canvas.width = avatarSize;
+                canvas.height = avatarSize;
+
+                // Apply a random background color
+                const backgroundColor = getRandomBackgroundColor(hash);
+                ctx.fillStyle = backgroundColor;
+                ctx.fillRect(0, 0, avatarSize, avatarSize);
+
+                // Generate the 8x8 pattern, mirroring the left half to the right
+                for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size / 2; x++) {
+                        const isFilled = hash.charCodeAt((y * size) + x) % 2 === 0;
+                        ctx.fillStyle = isFilled ? getRandomColor(hash, x, y) : backgroundColor;
+                        ctx.fillRect(x * scale, y * scale, scale, scale);
+                        ctx.fillRect((size - x - 1) * scale, y * scale, scale, scale); // Mirrored part
+                    }
+                }
+
+                return canvas.toDataURL();
+            }
+
+            function getRandomBackgroundColor(hash) {
+                const r = (hash.charCodeAt(0) * 31) % 255;
+                const g = (hash.charCodeAt(1) * 31) % 255;
+                const b = (hash.charCodeAt(2) * 31) % 255;
+                return `rgb(${r}, ${g}, ${b})`;
+            }
+
+            function hashString(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash |= 0; // Convert to 32bit integer
+                }
+                return hash.toString();
+            }
+
+            function getRandomColor(hash, x, y) {
+                const r = (hash.charCodeAt((x + y) % hash.length) * 31) % 255;
+                const g = (hash.charCodeAt((y + 1) % hash.length) * 31) % 255;
+                const b = (hash.charCodeAt((x + 2) % hash.length) * 31) % 255;
+                return `rgb(${r}, ${g}, ${b})`;
+            }
+
+            function openProfileModal(pubkey) {
+                const profile = getProfile(pubkey);
+
+                profileBanner.src = profile.banner;
+                profileAvatar.src = profile.avatar;
+                profileName.textContent = profile.name;
+                profileNip05.textContent = profile.nip05 ? `NIP-05: ${profile.nip05}` : '';
+                profileAbout.textContent = profile.about ? `About: ${profile.about}` : '';
+                profileLnurl.textContent = profile.lnurl ? `⚡ ${profile.lnurl}` : '';
+
+                // Clear previous notes
+                profileFeed.innerHTML = '';
+
+                // Fetch the user's notes and populate the profile feed
+                fetchUserNotes(pubkey);
+
+                profileModal.style.display = 'flex';
+            }
+
+            function closeProfileModal() {
+                profileModal.style.display = 'none';
+            }
+
+            closeModal.addEventListener('click', closeProfileModal);
+
+            // Close the modal when clicking outside of the modal content
+            profileModal.addEventListener('click', (event) => {
+                if (event.target === profileModal) {
+                    closeProfileModal();
+                }
+            });
+
+            function fetchUserNotes(pubkey) {
+                const userRelays = [...defaultRelays];
+                const subscriptionId = generateRandomHex(32);
+
+                userRelays.forEach(relayUrl => {
+                    const ws = new WebSocket(relayUrl);
+
+                    ws.onopen = () => {
+                        console.log(`Fetching user notes from relay: ${relayUrl}`);
+                        const reqMessage = JSON.stringify([
+                            "REQ",
+                            subscriptionId,
+                            { kinds: [1], authors: [pubkey], limit: 50 }
+                        ]);
+                        ws.send(reqMessage);
+                    };
+
+                    ws.onmessage = (event) => {
+                        const msg = JSON.parse(event.data);
+                        if (msg[0] === "EVENT") {
+                            const nostrEvent = msg[2];
+                            const noteItem = createTimelineItem(nostrEvent);
+                            profileFeed.appendChild(noteItem);
+                        }
+                    };
+
+                    ws.onclose = () => {
+                        console.log(`Closed connection to relay: ${relayUrl}`);
+                    };
+
+                    ws.onerror = (error) => {
+                        console.error(`Error fetching user notes from relay ${relayUrl}:`, error);
+                    };
+                });
             }
 
             function subscribeToRepliesInitialLoad(relayUrl, eventIds) {
@@ -1075,6 +1654,7 @@
                         if (!seenEventIds.has(nostrEvent.id)) {
                             seenEventIds.add(nostrEvent.id);
                             const newReplyItem = createReplyItem(nostrEvent);
+
                             // Append the new reply to the bottom of the replies feed
                             repliesFeed.append(newReplyItem);
                         }

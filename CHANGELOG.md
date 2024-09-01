@@ -1,3 +1,9 @@
+## v1.2.5 - 2024-01-01
+
+- New: support for loading media
+- New: view user profile
+- New: direct reply from note
+
 ## v1.1.5 - 2024-08-31
 
 - New: tweetdeck style view on desktop
