@@ -39,7 +39,7 @@
         }
 
         .sidebar {
-            width: 400px;
+            width: 300px;
             background-color: #fff;
             padding: 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -463,12 +463,9 @@
             object-fit: cover;
             image-rendering: pixelated;
             background-color: #ccc;
-            /* Fallback background color */
             cursor: pointer;
-            /* Add this line to make the cursor a pointer */
         }
 
-        /* Profile Modal Styles */
         .profile-modal {
             display: none;
             position: fixed;
@@ -481,7 +478,6 @@
             justify-content: center;
             align-items: center;
             overflow: auto;
-            /* Enable scrolling */
         }
 
         .profile-modal-content {
@@ -491,11 +487,9 @@
             max-width: 900px;
             border-radius: 8px;
             overflow-y: auto;
-            /* Allow content to scroll */
             text-align: center;
             padding-bottom: 20px;
             position: relative;
-            /* Make close button absolute to this container */
         }
 
         .profile-banner {
@@ -503,7 +497,6 @@
             height: 150px;
             object-fit: cover;
             background: url('./images/anon-banner.png') center/cover no-repeat;
-            /* Fallback banner */
         }
 
         .profile-avatar {
@@ -513,9 +506,8 @@
             margin-top: -50px;
             border: 5px solid #fff;
             image-rendering: pixelated;
-            /* Ensures pixel art avatars remain crisp */
             background-color: #ccc;
-            /* Fallback background color */
+
         }
 
         .profile-info {
@@ -541,7 +533,6 @@
         .profile-feed p,
         .reply-icon {
             text-align: left;
-            /* Align text to the left */
         }
 
         .profile-feed .timeline-item {
@@ -1057,7 +1048,6 @@
 
             // Helper function to convert image URLs to <img> tags
             function convertImageUrlsToImages(content) {
-                // Regular expression to match image URLs (ending with common image extensions)
                 const imageRegex = /(https?:\/\/\S+\.(?:png|jpg|jpeg|gif|bmp|webp|svg|tiff))/gi;
 
                 // Replace image URLs with <img> tags
@@ -1419,7 +1409,7 @@
                             seenEventIds.add(nostrEvent.id);
                             const newTimelineItem = createTimelineItem(nostrEvent);
 
-                            timelineFeed.prepend(newTimelineItem); // Always prepend to show newest at the top
+                            timelineFeed.prepend(newTimelineItem);
                         }
                     }
                 };
@@ -1467,9 +1457,9 @@
             function generatePixelArtAvatar(seed) {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                const size = 8; // 8x8 grid
-                const scale = 12; // Scale factor to make the avatar larger
-                const avatarSize = 40; // Final avatar size (40x40 pixels)
+                const size = 8; 
+                const scale = 12; 
+                const avatarSize = 40; 
                 const hash = hashString(seed);
 
                 canvas.width = avatarSize;
@@ -1486,7 +1476,7 @@
                         const isFilled = hash.charCodeAt((y * size) + x) % 2 === 0;
                         ctx.fillStyle = isFilled ? getRandomColor(hash, x, y) : backgroundColor;
                         ctx.fillRect(x * scale, y * scale, scale, scale);
-                        ctx.fillRect((size - x - 1) * scale, y * scale, scale, scale); // Mirrored part
+                        ctx.fillRect((size - x - 1) * scale, y * scale, scale, scale);
                     }
                 }
 
@@ -1505,7 +1495,7 @@
                 for (let i = 0; i < str.length; i++) {
                     const char = str.charCodeAt(i);
                     hash = ((hash << 5) - hash) + char;
-                    hash |= 0; // Convert to 32bit integer
+                    hash |= 0;
                 }
                 return hash.toString();
             }
@@ -1680,9 +1670,9 @@
                     "REQ",
                     subscriptionId,
                     {
-                        kinds: [1], // Text notes
-                        '#e': eventIds, // Filter by event ID tags (replies)
-                        limit: 100 // Add the limit filter here
+                        kinds: [1], 
+                        '#e': eventIds,
+                        limit: 100
                     }
                 ]);
 
@@ -1707,7 +1697,7 @@
                 }
 
                 for (const relayUrl of defaultRelays) {
-                    subscribeToRepliesInitialLoad(relayUrl, eventIds); // Prepend items to the top
+                    subscribeToRepliesInitialLoad(relayUrl, eventIds);
                 }
             }
 
