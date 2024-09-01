@@ -340,9 +340,10 @@
 
         .github-buttons-container {
             display: flex;
-            flex-direction: column;
+            justify-content: space-around;
             align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         footer a,
@@ -353,6 +354,7 @@
             background: none;
             padding: 0;
             font: inherit;
+            margin: 0;
         }
 
         footer a:hover,
@@ -1457,9 +1459,9 @@
             function generatePixelArtAvatar(seed) {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                const size = 8; 
-                const scale = 12; 
-                const avatarSize = 40; 
+                const size = 8;
+                const scale = 12;
+                const avatarSize = 40;
                 const hash = hashString(seed);
 
                 canvas.width = avatarSize;
@@ -1670,7 +1672,7 @@
                     "REQ",
                     subscriptionId,
                     {
-                        kinds: [1], 
+                        kinds: [1],
                         '#e': eventIds,
                         limit: 100
                     }
