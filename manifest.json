@@ -1,7 +1,7 @@
 {
     "name": "Anonostr",
     "short_name": "Anonostr",
-    "description": "Anonymous Nostr Note Sender",
+    "description": "Anonymous Nostr Client",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
