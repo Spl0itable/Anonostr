@@ -624,7 +624,6 @@ footer button[data-npub]:active {
     font-weight: bold;
 }
 
-/* New Styles for Back Button and Profile View */
 .back-button {
     position: absolute;
     top: 10px;

@@ -123,16 +123,14 @@ document.addEventListener("DOMContentLoaded", () => {
         };
     }
 
+    // Profile view in search results
     function openProfileView(pubkey) {
         const profile = getProfile(pubkey);
     
-        // Update the profile view with cached data first
         updateProfileView(profile);
-    
-        // Clear previous notes
+
         modalProfileFeed.innerHTML = '';
-    
-        // Fetch the user's notes and populate the profile feed
+
         fetchUserNotes(pubkey, modalProfileFeed, false);
     
         // Switch from search results to profile view
@@ -155,15 +153,15 @@ document.addEventListener("DOMContentLoaded", () => {
         searchResults.style.display = 'none';
         profileView.style.display = 'none';
         backButton.style.display = 'none';
-        searchResults.innerHTML = ''; // Clear search results
-        modalProfileFeed.innerHTML = ''; // Clear profile feed
+        searchResults.innerHTML = '';
+        modalProfileFeed.innerHTML = ''; 
     }
 
     // Function to fetch user notes and display them in the profile view
     function fetchUserNotes(pubkey) {
         const userRelays = [...defaultRelays];
         const subscriptionId = generateRandomHex(32);
-        const aggregatedEvents = new Map(); // To store unique events by their ID
+        const aggregatedEvents = new Map();
 
         userRelays.forEach(relayUrl => {
             const ws = new WebSocket(relayUrl);
@@ -221,12 +219,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const rateLimitSeconds = 30; // 30-second delay between note sending
     const localStorageKey = 'lastSubmitTime';
-    const eventIdsStorageKey = 'submittedEventIds'; // Key to store event IDs
-    const seenEventIds = new Set(); // To track and deduplicate events
-    const profileCache = {}; // Cache for display names and avatars
+    const eventIdsStorageKey = 'submittedEventIds';
+    const seenEventIds = new Set();
+    const profileCache = {}; 
 
-    let rootEventId = null; // Store the root event ID for threading
-    let lastEventId = null; // Store the ID of the last event to reply to it in the chain
+    let rootEventId = null; 
+    let lastEventId = null;
 
     // WebSocket references for managing subscriptions
     const wsRelays = {};
@@ -243,7 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Function to update the relay list display
     function updateRelayList() {
-        relayList.innerHTML = ''; // Clear current list
+        relayList.innerHTML = '';
 
         let selectedRelays;
         if (torRelaysCheckbox.checked) {
@@ -252,7 +250,6 @@ document.addEventListener("DOMContentLoaded", () => {
             selectedRelays = defaultRelays;
         }
 
-        // Populate the relay list
         selectedRelays.forEach(relayUrl => {
             const relayItem = document.createElement('li');
             relayItem.textContent = relayUrl;
@@ -930,8 +927,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         profileCache[pubkey] = {
             name: profile.name || `${pubkey.slice(0, 6)}...${pubkey.slice(-4)}`,
-            avatar: profile.picture || generatePixelArtAvatar(pubkey), // Generate avatar if none exists
-            banner: profile.banner || './images/anon-banner.png', // Fallback banner image
+            avatar: profile.picture || generatePixelArtAvatar(pubkey), 
+            banner: profile.banner || './images/anon-banner.png',
             nip05: profile.nip05 || '',
             about: profile.about || '',
             lnurl: profile.lud16 || profile.lud06 || ''
@@ -946,7 +943,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return {
                 name: `${pubkey.slice(0, 6)}...${pubkey.slice(-4)}`,
                 avatar: generatePixelArtAvatar(pubkey),
-                banner: './images/anon-banner.png', // Fallback banner image
+                banner: './images/anon-banner.png',
                 nip05: '',
                 about: '',
                 lnurl: ''
@@ -970,7 +967,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = backgroundColor;
         ctx.fillRect(0, 0, avatarSize, avatarSize);
 
-        // Generate the 8x8 pattern, mirroring the left half to the right
+        // Generate the 8x8 pattern
         for (let y = 0; y < size; y++) {
             for (let x = 0; x < size / 2; x++) {
                 const isFilled = hash.charCodeAt((y * size) + x) % 2 === 0;
@@ -1043,11 +1040,11 @@ document.addEventListener("DOMContentLoaded", () => {
     function fetchUserNotes(pubkey, feedElement, isProfileModal = false) {
         const userRelays = [...defaultRelays];
         const subscriptionId = generateRandomHex(32);
-        const aggregatedEvents = new Map(); // To store unique events by their ID
+        const aggregatedEvents = new Map();
     
         userRelays.forEach(relayUrl => {
             const ws = new WebSocket(relayUrl);
-            let isResolved = false; // Track if the connection has been established
+            let isResolved = false;
     
             ws.onopen = () => {
                 isResolved = true;
@@ -1137,7 +1134,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Reconnect to maintain the subscription for real-time updates
             setTimeout(() => {
                 subscribeToRepliesInitialLoad(relayUrl, eventIds);
-            }, 3000); // Reconnect after 3 seconds
+            }, 3000);
         };
     }
 
@@ -1190,7 +1187,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Reconnect to maintain the subscription for real-time updates
             setTimeout(() => {
                 subscribeToRepliesUpdate(relayUrl, eventIds);
-            }, 3000); // Reconnect after 3 seconds
+            }, 3000);
         };
     }
 
@@ -1206,16 +1203,14 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         ]);
 
-        // Send the REQ message to the WebSocket
         ws.send(reqMessage);
 
-        // Log after sending the message
         console.log(`Updated subscription to relay for replies with message: ${reqMessage}`);
     }
 
     function fetchTimeline() {
         for (const relayUrl of defaultRelays) {
-            subscribeToRelay(relayUrl); // Prepend items to the top
+            subscribeToRelay(relayUrl);
         }
     }
 
@@ -1262,6 +1257,7 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchReplies();
 });
 
+// Initialize service worker
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/service-worker.js')
         .then(registration => {
