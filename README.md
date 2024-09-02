@@ -24,11 +24,7 @@
 ## IPFS
 Access the Anonostr web app through the decentralized IPFS network:
 
-- https://white-sun-2491.on.fleek.co/ 
-
-Current IPFS Hash:
-
-- QmNy2MzcftdM9Gcs4DTibRd5EQh9F4biQ6b8NAA5m3HUL5
+- https://white-sun-2491.on.fleek.co/
 
 ## Installation
 You can install **Anonostr** as a Progressive Web App (PWA) on your mobile or desktop device:
