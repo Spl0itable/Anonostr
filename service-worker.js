@@ -1,4 +1,4 @@
-const CACHE_NAME = 'anonostr-cache-v1.3.7';
+const CACHE_NAME = 'anonostr-cache-v1.3.8';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -20,20 +20,17 @@ self.addEventListener('install', event => {
 
 // Fetch event
 self.addEventListener('fetch', event => {
-  // Check if the request is for an external URL
-  if (event.request.url.startsWith('https://buttons.github.io/')) {
-    // Bypass the cache and fetch directly from the network
-    event.respondWith(fetch(event.request).catch(() => {
-      // Handle fetch failure (e.g., network issues)
-      return new Response('Failed to fetch external resource', {
-        status: 404,
-        statusText: 'Failed to fetch external resource',
-      });
-    }));
-  } else {
+  const requestUrl = new URL(event.request.url);
+
+  // Check if the request is for a local resource
+  if (requestUrl.origin === self.location.origin) {
     event.respondWith(
       caches.match(event.request).then(response => {
-        return response || fetch(event.request);
+        // Return the cached version if available, otherwise fetch from the network
+        return response || fetch(event.request).then(networkResponse => {
+          // Optionally, you could cache the new fetched response here if needed
+          return networkResponse;
+        });
       }).catch(() => {
         // Handle fetch failure when offline or resource is not in cache
         return new Response('You are offline, and the resource is not cached.', {
@@ -42,6 +39,9 @@ self.addEventListener('fetch', event => {
         });
       })
     );
+  } else {
+    // For external requests, fetch normally without caching
+    event.respondWith(fetch(event.request));
   }
 });
 
