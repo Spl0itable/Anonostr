@@ -1,3 +1,7 @@
+## v1.3.7 - 2024-01-02
+
+- Hotfix: service worker script support of external requests
+
 ## v1.3.6 - 2024-01-02
 
 - Hotfix: service worker script exclusion of external requests

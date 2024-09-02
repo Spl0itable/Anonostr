@@ -1,4 +1,4 @@
-const CACHE_NAME = 'anonostr-cache-v1.3.6';
+const CACHE_NAME = 'anonostr-cache-v1.3.7';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -20,8 +20,17 @@ self.addEventListener('install', event => {
 
 // Fetch event
 self.addEventListener('fetch', event => {
-  // Only handle requests for local resources
-  if (event.request.url.startsWith(self.location.origin)) {
+  // Check if the request is for an external URL
+  if (event.request.url.startsWith('https://buttons.github.io/')) {
+    // Bypass the cache and fetch directly from the network
+    event.respondWith(fetch(event.request).catch(() => {
+      // Handle fetch failure (e.g., network issues)
+      return new Response('Failed to fetch external resource', {
+        status: 404,
+        statusText: 'Failed to fetch external resource',
+      });
+    }));
+  } else {
     event.respondWith(
       caches.match(event.request).then(response => {
         return response || fetch(event.request);
