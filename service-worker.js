@@ -1,4 +1,4 @@
-const CACHE_NAME = 'anonostr-cache-v1.3.8';
+const CACHE_NAME = 'anonostr-cache-v1.4.8';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -6,7 +6,11 @@ const urlsToCache = [
   '/images/anonostr-icon.png',
   '/images/anonostr-hero.png',
   '/styles.css',
-  '/app.js'
+  '/app.js',
+  // External Resources
+  'https://unpkg.com/nostr-tools/lib/nostr.bundle.js',
+  'https://buttons.github.io/buttons.js',
+  'https://cdn.jsdelivr.net/npm/nostr-zap@1.1.0'
 ];
 
 // Install the service worker
@@ -22,14 +26,17 @@ self.addEventListener('install', event => {
 self.addEventListener('fetch', event => {
   const requestUrl = new URL(event.request.url);
 
-  // Check if the request is for a local resource
-  if (requestUrl.origin === self.location.origin) {
+  // Check if the request is for a local resource or an explicitly cached external resource
+  if (urlsToCache.includes(requestUrl.href) || requestUrl.origin === self.location.origin) {
     event.respondWith(
       caches.match(event.request).then(response => {
         // Return the cached version if available, otherwise fetch from the network
         return response || fetch(event.request).then(networkResponse => {
-          // Optionally, you could cache the new fetched response here if needed
-          return networkResponse;
+          // Optionally, cache the newly fetched response for future use
+          return caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, networkResponse.clone());
+            return networkResponse;
+          });
         });
       }).catch(() => {
         // Handle fetch failure when offline or resource is not in cache
@@ -40,7 +47,7 @@ self.addEventListener('fetch', event => {
       })
     );
   } else {
-    // For external requests, fetch normally without caching
+    // For any other requests (especially external), fetch from the network
     event.respondWith(fetch(event.request));
   }
 });

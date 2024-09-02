@@ -10,15 +10,200 @@ document.addEventListener("DOMContentLoaded", () => {
     const relayList = document.getElementById('relayList');
     const timelineFeed = document.getElementById('timelineFeed');
     const repliesFeed = document.getElementById('repliesFeed');
-    const profileModal = document.getElementById('profileModal');
-    const closeModal = document.getElementById('closeModal');
-    const profileBanner = document.getElementById('profileBanner');
-    const profileAvatar = document.getElementById('profileAvatar');
-    const profileName = document.getElementById('profileName');
-    const profileNip05 = document.getElementById('profileNip05');
-    const profileAbout = document.getElementById('profileAbout');
-    const profileLnurl = document.getElementById('profileLnurl');
-    const profileFeed = document.getElementById('profileFeed');
+    const searchModal = document.getElementById('searchModal');
+    const closeSearchModal = document.getElementById('closeSearchModal');
+    const searchResults = document.getElementById('searchResults');
+    const profileView = document.getElementById('profileView');
+    const backButton = document.getElementById('backButton');
+    const modalProfileBanner = document.getElementById('modalProfileBanner');
+    const modalProfileAvatar = document.getElementById('modalProfileAvatar');
+    const modalProfileName = document.getElementById('modalProfileName');
+    const modalProfileNip05 = document.getElementById('modalProfileNip05');
+    const modalProfileAbout = document.getElementById('modalProfileAbout');
+    const modalProfileLnurl = document.getElementById('modalProfileLnurl');
+    const modalProfileFeed = document.getElementById('modalProfileFeed');
+    const searchInput = document.getElementById('searchInput');
+
+    searchInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            const query = searchInput.value.trim();
+            if (query) {
+                openSearchModal(query);
+            }
+        }
+    });
+
+    closeSearchModal.addEventListener('click', () => {
+        searchModal.style.display = 'none';
+        resetModal();
+    });
+
+    searchModal.addEventListener('click', (event) => {
+        if (event.target === searchModal) {
+            searchModal.style.display = 'none';
+            resetModal();
+        }
+    });
+
+    backButton.addEventListener('click', () => {
+        profileView.style.display = 'none';
+        searchResults.style.display = 'block';
+        backButton.style.display = 'none';
+    });
+
+    function openSearchModal(query) {
+        resetModal();
+        searchResults.style.display = 'block';
+        searchModal.style.display = 'flex';
+
+        for (const relayUrl of defaultRelays) {
+            searchRelay(query, relayUrl);
+        }
+    }
+
+    async function searchRelay(query, relayUrl) {
+        const ws = new WebSocket(relayUrl);
+
+        ws.onopen = () => {
+            console.log(`Searching for "${query}" on relay: ${relayUrl}`);
+
+            const subscriptionId = generateRandomHex(32);
+            const reqMessage = JSON.stringify([
+                "REQ",
+                subscriptionId,
+                {
+                    kinds: [0, 1], // Search for both profile and text events
+                    search: query,
+                    limit: 50
+                }
+            ]);
+            ws.send(reqMessage);
+        };
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg[0] === "EVENT") {
+                const nostrEvent = msg[2];
+
+                if (nostrEvent.kind === 0) {
+                    // Cache the profile data
+                    cacheProfile(nostrEvent);
+
+                    // Retrieve the profile data from cache
+                    const { name, avatar } = getProfile(nostrEvent.pubkey);
+
+                    // Create and render the profile item
+                    const profileItem = document.createElement('div');
+                    profileItem.className = 'profile-result';
+
+                    profileItem.innerHTML = `
+    <img src="${avatar}" alt="${name}'s avatar" class="avatar">
+    <span class="profile-name">${name}</span>
+    `;
+
+                    profileItem.addEventListener('click', () => {
+                        openProfileView(nostrEvent.pubkey);
+                    });
+
+                    searchResults.appendChild(profileItem);
+                } else if (nostrEvent.kind === 1) {
+                    // Handle kind 1 (text note) events
+                    const searchItem = createTimelineItemForSearch(nostrEvent);
+                    searchResults.appendChild(searchItem);
+                }
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error(`Error searching relay ${relayUrl}:`, error);
+        };
+
+        ws.onclose = () => {
+            console.log(`Closed connection to relay: ${relayUrl}`);
+        };
+    }
+
+    function openProfileView(pubkey) {
+        const profile = getProfile(pubkey);
+    
+        // Update the profile view with cached data first
+        updateProfileView(profile);
+    
+        // Clear previous notes
+        modalProfileFeed.innerHTML = '';
+    
+        // Fetch the user's notes and populate the profile feed
+        fetchUserNotes(pubkey, modalProfileFeed, false);
+    
+        // Switch from search results to profile view
+        searchResults.style.display = 'none';
+        profileView.style.display = 'block';
+        backButton.style.display = 'block';
+    }
+
+    function updateProfileView(profile) {
+        modalProfileBanner.src = profile.banner;
+        modalProfileAvatar.src = profile.avatar;
+        modalProfileName.textContent = profile.name;
+        modalProfileNip05.textContent = profile.nip05 ? `NIP-05: ${profile.nip05}` : '';
+        modalProfileAbout.textContent = profile.about ? `About: ${profile.about}` : '';
+        modalProfileLnurl.textContent = profile.lnurl ? `⚡ ${profile.lnurl}` : '';
+    }
+
+    // Reset the modal to its initial state
+    function resetModal() {
+        searchResults.style.display = 'none';
+        profileView.style.display = 'none';
+        backButton.style.display = 'none';
+        searchResults.innerHTML = ''; // Clear search results
+        modalProfileFeed.innerHTML = ''; // Clear profile feed
+    }
+
+    // Function to fetch user notes and display them in the profile view
+    function fetchUserNotes(pubkey) {
+        const userRelays = [...defaultRelays];
+        const subscriptionId = generateRandomHex(32);
+        const aggregatedEvents = new Map(); // To store unique events by their ID
+
+        userRelays.forEach(relayUrl => {
+            const ws = new WebSocket(relayUrl);
+            ws.onopen = () => {
+                console.log(`Fetching user notes from relay: ${relayUrl}`);
+
+                const reqMessage = JSON.stringify([
+                    "REQ",
+                    subscriptionId,
+                    { kinds: [1], authors: [pubkey], limit: 50 }
+                ]);
+                ws.send(reqMessage);
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg[0] === "EVENT") {
+                    const nostrEvent = msg[2];
+                    if (!aggregatedEvents.has(nostrEvent.id)) {
+                        aggregatedEvents.set(nostrEvent.id, nostrEvent);
+                        insertUserNoteInProfileView(nostrEvent);
+                    }
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error(`Error fetching user notes from relay ${relayUrl}:`, error);
+            };
+
+            ws.onclose = () => {
+                console.log(`Closed connection to relay: ${relayUrl}`);
+            };
+        });
+    }
+
+    // Function to insert a user note into the profile view
+    function insertUserNoteInProfileView(event) {
+        const noteItem = createTimelineItem(event);
+        modalProfileFeed.appendChild(noteItem);
+    }
 
     // Default relays
     const defaultRelays = [
@@ -315,12 +500,60 @@ document.addEventListener("DOMContentLoaded", () => {
         // Replace video URLs with <video> tags
         content = content.replace(videoRegex, (url) => {
             return `<video controls style="max-width: 100%; height: auto; display: block; margin: 10px 0;">
-                    <source src="${url}" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>`;
+    <source src="${url}" type="video/mp4">
+    Your browser does not support the video tag.
+    </video>`;
         });
 
         return content;
+    }
+
+    function createTimelineItemForSearch(event) {
+        const timelineItem = document.createElement('div');
+        timelineItem.className = 'timeline-item';
+
+        const authorHex = event.pubkey;
+
+        // Get the author's display name and avatar
+        const { name: authorName, avatar: authorAvatar } = getProfile(authorHex);
+
+        // Convert the Unix timestamp to a human-readable format
+        const timestamp = new Date(event.created_at * 1000).toLocaleString();
+
+        // Convert image URLs in the content to <img> tags
+        const contentWithImages = convertMediaUrlsToElements(event.content);
+
+        timelineItem.innerHTML = `
+    <div class="timeline-header">
+    <img src="${authorAvatar}" alt="${authorName}'s avatar" class="avatar">
+    <span class="author" data-pubkey="${authorHex}">${authorName}</span>
+    <span class="timestamp">${timestamp}</span>
+    </div>
+    <p>${contentWithImages}</p>
+    <span class="reply-icon" data-note-id="${event.id}">↩️</span>
+    `;
+
+        const replyIcon = timelineItem.querySelector('.reply-icon');
+        replyIcon.addEventListener('click', () => {
+            handleReplyIconClick(timelineItem, event.id);
+        });
+
+        const authorNameElement = timelineItem.querySelector('.author');
+        const avatarElement = timelineItem.querySelector('.avatar');
+
+        // Determine which profile modal to open based on the context
+        const openProfile = () => {
+            if (searchModal.style.display === 'flex') {
+                openProfileView(authorHex); // Open profile in the search modal
+            } else {
+                openProfileModal(authorHex); // Open the regular profile modal
+            }
+        };
+
+        authorNameElement.addEventListener('click', openProfile);
+        avatarElement.addEventListener('click', openProfile);
+
+        return timelineItem;
     }
 
     function createTimelineItem(event) {
@@ -339,14 +572,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const contentWithImages = convertMediaUrlsToElements(event.content);
 
         timelineItem.innerHTML = `
-<div class="timeline-header">
+    <div class="timeline-header">
     <img src="${authorAvatar}" alt="${authorName}'s avatar" class="avatar">
     <span class="author" data-pubkey="${authorHex}">${authorName}</span>
     <span class="timestamp">${timestamp}</span>
-</div>
-<p>${contentWithImages}</p>
-<span class="reply-icon" data-note-id="${event.id}">↩️</span>
-`;
+    </div>
+    <p>${contentWithImages}</p>
+    <span class="reply-icon" data-note-id="${event.id}">↩️</span>
+    `;
 
         const replyIcon = timelineItem.querySelector('.reply-icon');
         replyIcon.addEventListener('click', () => {
@@ -382,14 +615,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const contentWithImages = convertMediaUrlsToElements(event.content);
 
         replyItem.innerHTML = `
-<div class="timeline-header">
+    <div class="timeline-header">
     <img src="${authorAvatar}" alt="${authorName}'s avatar" class="avatar">
     <span class="author" data-pubkey="${authorHex}">${authorName}</span>
     <span class="timestamp">${timestamp}</span>
-</div>
-<p>${contentWithImages}</p>
-<span class="reply-icon" data-note-id="${event.id}">↩️</span>
-`;
+    </div>
+    <p>${contentWithImages}</p>
+    <span class="reply-icon" data-note-id="${event.id}">↩️</span>
+    `;
 
         const replyIcon = replyItem.querySelector('.reply-icon');
         replyIcon.addEventListener('click', () => {
@@ -434,28 +667,28 @@ document.addEventListener("DOMContentLoaded", () => {
             replyOptions.className = 'checkbox-group';
 
             replyOptions.innerHTML = `
-                <div class="checkbox-container">
-                    <input type="checkbox" class="reply-chain-checkbox">
-                    <label for="replyChain">Reply chain</label>
-                    <div class="tooltip">ℹ️
-                        <span class="tooltiptext">Enable this to link your notes as replies in a threaded conversation, maintaining the context within a linked chain of notes.</span>
-                    </div>
-                </div>
-                <div class="checkbox-container">
-                    <input type="checkbox" class="relay-hop-checkbox">
-                    <label for="relayHop">Relay hop</label>
-                    <div class="tooltip">ℹ️
-                        <span class="tooltiptext">Relay hopping adds obfuscation by spreading notes across different relays randomly, making it harder for any single relay to correlate and track the notes.</span>
-                    </div>
-                </div>
-                <div class="checkbox-container">
-                    <input type="checkbox" class="tor-relays-checkbox">
-                    <label for="torRelays">Tor relays</label>
-                    <div class="tooltip">ℹ️
-                        <span class="tooltiptext">Use only relays behind onion services for added anonymity.</span>
-                    </div>
-                </div>
-            `;
+    <div class="checkbox-container">
+    <input type="checkbox" class="reply-chain-checkbox">
+    <label for="replyChain">Reply chain</label>
+    <div class="tooltip">ℹ️
+    <span class="tooltiptext">Enable this to link your notes as replies in a threaded conversation, maintaining the context within a linked chain of notes.</span>
+    </div>
+    </div>
+    <div class="checkbox-container">
+    <input type="checkbox" class="relay-hop-checkbox">
+    <label for="relayHop">Relay hop</label>
+    <div class="tooltip">ℹ️
+    <span class="tooltiptext">Relay hopping adds obfuscation by spreading notes across different relays randomly, making it harder for any single relay to correlate and track the notes.</span>
+    </div>
+    </div>
+    <div class="checkbox-container">
+    <input type="checkbox" class="tor-relays-checkbox">
+    <label for="torRelays">Tor relays</label>
+    <div class="tooltip">ℹ️
+    <span class="tooltiptext">Use only relays behind onion services for added anonymity.</span>
+    </div>
+    </div>
+    `;
 
             // Append the textarea, checkboxes, and button to the reply form
             replyForm.appendChild(replyTextarea);
@@ -776,20 +1009,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function openProfileModal(pubkey) {
         const profile = getProfile(pubkey);
-
+    
+        // Update the modal with cached data
         profileBanner.src = profile.banner;
         profileAvatar.src = profile.avatar;
         profileName.textContent = profile.name;
         profileNip05.textContent = profile.nip05 ? `NIP-05: ${profile.nip05}` : '';
         profileAbout.textContent = profile.about ? `About: ${profile.about}` : '';
         profileLnurl.textContent = profile.lnurl ? `⚡ ${profile.lnurl}` : '';
-
+    
         // Clear previous notes
         profileFeed.innerHTML = '';
-
+    
         // Fetch the user's notes and populate the profile feed
-        fetchUserNotes(pubkey);
-
+        fetchUserNotes(pubkey, profileFeed, true);
+    
         profileModal.style.display = 'flex';
     }
 
@@ -806,19 +1040,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    function fetchUserNotes(pubkey) {
+    function fetchUserNotes(pubkey, feedElement, isProfileModal = false) {
         const userRelays = [...defaultRelays];
         const subscriptionId = generateRandomHex(32);
         const aggregatedEvents = new Map(); // To store unique events by their ID
-
+    
         userRelays.forEach(relayUrl => {
             const ws = new WebSocket(relayUrl);
             let isResolved = false; // Track if the connection has been established
-
+    
             ws.onopen = () => {
                 isResolved = true;
                 console.log(`Fetching user notes from relay: ${relayUrl}`);
-
+    
                 const reqMessage = JSON.stringify([
                     "REQ",
                     subscriptionId,
@@ -826,7 +1060,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ]);
                 ws.send(reqMessage);
             };
-
+    
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 if (msg[0] === "EVENT") {
@@ -834,39 +1068,39 @@ document.addEventListener("DOMContentLoaded", () => {
                     // Deduplicate by event ID
                     if (!aggregatedEvents.has(nostrEvent.id)) {
                         aggregatedEvents.set(nostrEvent.id, nostrEvent);
-                        insertSortedEvent(nostrEvent);
+                        insertSortedEvent(nostrEvent, feedElement, isProfileModal);
                     }
                 }
             };
-
+    
             ws.onerror = (error) => {
                 console.error(`Error fetching user notes from relay ${relayUrl}:`, error);
             };
-
+    
             ws.onclose = () => {
                 console.log(`Closed connection to relay: ${relayUrl}`);
             };
         });
 
         // Function to insert events in real-time, keeping the feed sorted
-        function insertSortedEvent(event) {
+        function insertSortedEvent(event, feedElement, isProfileModal) {
             const noteItem = createTimelineItem(event);
             const timestamp = event.created_at;
-
+    
             // Find the correct position to insert the new event
             let inserted = false;
-            for (let i = 0; i < profileFeed.children.length; i++) {
-                const existingTimestamp = parseInt(profileFeed.children[i].getAttribute('data-timestamp'), 10);
+            for (let i = 0; i < feedElement.children.length; i++) {
+                const existingTimestamp = parseInt(feedElement.children[i].getAttribute('data-timestamp'), 10);
                 if (timestamp > existingTimestamp) {
-                    profileFeed.insertBefore(noteItem, profileFeed.children[i]);
+                    feedElement.insertBefore(noteItem, feedElement.children[i]);
                     inserted = true;
                     break;
                 }
             }
-
+    
             // If no position is found, append to the end
             if (!inserted) {
-                profileFeed.appendChild(noteItem);
+                feedElement.appendChild(noteItem);
             }
         }
     }

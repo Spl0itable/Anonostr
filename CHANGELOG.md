@@ -1,3 +1,7 @@
+## v1.4.8 - 2024-01-02
+
+- New: search feature
+
 ## v1.3.8 - 2024-01-02
 
 - Hotfix: service worker script support of external requests

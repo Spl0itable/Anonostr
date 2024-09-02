@@ -36,9 +36,7 @@
         </div>
         <!-- Desc Section -->
         <div class="desc-section">
-            <p>Send anonymous notes to the Nostr network without revealing
-                your identity. Each note submission generates a new key pair that's securely burned after single use
-                furthering anonymity.</p>
+            <p>Send anonymous notes on Nostr. Each note submission generates a new key pair that's securely burned.</p>
         </div>
 
         <form id="eventForm">
@@ -112,7 +110,10 @@
     </div>
 
     <div class="main-content">
-        <h2>Global</h2>
+        <div class="global-header">
+            <h2>Global</h2>
+            <input type="text" id="searchInput" placeholder="Search..." class="search-input">
+        </div>
         <div class="timeline-feed" id="timelineFeed">
             <!-- Timeline items are dynamically injected here -->
         </div>
@@ -122,6 +123,32 @@
         <h2>Replies</h2>
         <div class="replies-feed" id="repliesFeed">
             <!-- Replies are dynamically injected here -->
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div class="search-modal" id="searchModal">
+        <div class="search-modal-content">
+            <button class="back-button" id="backButton" style="display: none;">← Back</button>
+            <span class="close-search-modal" id="closeSearchModal">&times;</span>
+
+            <div class="search-results" id="searchResults">
+                <!-- Search results are dynamically injected here -->
+            </div>
+
+            <div class="profile-view" id="profileView" style="display: none;">
+                <img src="" alt="Banner Image" class="profile-banner" id="modalProfileBanner">
+                <img src="" alt="Avatar" class="profile-avatar" id="modalProfileAvatar">
+                <div class="profile-info" id="modalProfileInfo">
+                    <h2 id="modalProfileName"></h2>
+                    <p id="modalProfileNip05"></p>
+                    <p id="modalProfileAbout"></p>
+                    <p id="modalProfileLnurl"></p>
+                </div>
+                <div class="profile-feed" id="modalProfileFeed">
+                    <!-- User's notes are dynamically injected here -->
+                </div>
+            </div>
         </div>
     </div>
 
