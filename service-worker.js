@@ -1,4 +1,4 @@
-const CACHE_NAME = 'anonostr-cache-v1.3.5';
+const CACHE_NAME = 'anonostr-cache-v1.3.6';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -20,11 +20,20 @@ self.addEventListener('install', event => {
 
 // Fetch event
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
-    })
-  );
+  // Only handle requests for local resources
+  if (event.request.url.startsWith(self.location.origin)) {
+    event.respondWith(
+      caches.match(event.request).then(response => {
+        return response || fetch(event.request);
+      }).catch(() => {
+        // Handle fetch failure when offline or resource is not in cache
+        return new Response('You are offline, and the resource is not cached.', {
+          status: 404,
+          statusText: 'Resource not found in cache',
+        });
+      })
+    );
+  }
 });
 
 // Activate event

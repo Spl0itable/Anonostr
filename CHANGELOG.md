@@ -1,3 +1,7 @@
+## v1.3.6 - 2024-01-02
+
+- Hotfix: service worker script exclusion of external requests
+
 ## v1.3.5 - 2024-01-02
 
 - Tweaked: improved feed loading and added video rendering
