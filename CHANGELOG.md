@@ -1,3 +1,8 @@
+## v1.3.5 - 2024-01-02
+
+- Tweaked: improved feed loading and added video rendering
+- Tweaked: improved overall codebase
+
 ## v1.2.5 - 2024-01-01
 
 - New: support for loading media
