@@ -163,7 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const followingFeed = document.getElementById('followingFeed');
         followingFeed.innerHTML = ''; // Clear the existing following timeline
         showSpinner(followingFeed); // Show spinner for following timeline
-
+    
         const following = getFollowingPubkeys();
         if (following.length === 0) {
             // Create and insert the "not following anyone" message directly in the following timeline
@@ -171,14 +171,14 @@ document.addEventListener("DOMContentLoaded", () => {
             noFollowingMessage.className = 'no-following-message';
             noFollowingMessage.textContent = 'You are not following anyone yet.';
             followingFeed.appendChild(noFollowingMessage);
-
+            
             hideSpinner(followingFeed); // Hide the spinner since there's no content to load
             return;
         }
-
+    
         for (const relayUrl of defaultRelays) {
             const ws = new WebSocket(relayUrl);
-
+    
             ws.onopen = () => {
                 const subscriptionId = generateRandomHex(32);
                 const reqMessage = JSON.stringify([
@@ -187,7 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     { kinds: [1], authors: following, limit: 100 }
                 ]);
                 ws.send(reqMessage);
-
+    
                 // Subscribe to kind 0 events to get display names and avatars
                 const profileReqMessage = JSON.stringify([
                     "REQ",
@@ -196,21 +196,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 ]);
                 ws.send(profileReqMessage);
             };
-
+    
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 if (msg[0] === "EVENT") {
                     const nostrEvent = msg[2];
-
+    
                     if (nostrEvent.kind === 0) {
                         // Cache the profile data
                         cacheProfile(nostrEvent);
-
+    
                         // Update any existing timeline items with the new profile data
                         updateTimelineItemsWithProfileData(nostrEvent.pubkey);
                     } else if (nostrEvent.kind === 1 && !seenEventIds.has(nostrEvent.id)) {
                         seenEventIds.add(nostrEvent.id);
-
+    
                         // Immediately render the timeline item
                         const newTimelineItem = createTimelineItem(nostrEvent);
                         followingFeed.append(newTimelineItem);
@@ -218,12 +218,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             };
-
+    
             ws.onerror = (error) => {
                 console.error(`Error fetching following timeline from relay ${relayUrl}:`, error);
                 hideSpinner(followingFeed); // Hide spinner on error
             };
-
+    
             ws.onclose = () => {
                 console.log(`Closed connection to relay: ${relayUrl}`);
             };
@@ -276,7 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
         searchResults.style.display = 'block';
         searchModal.style.display = 'flex';
         showSpinner(searchResults); // Show spinner for search results
-
+    
         for (const relayUrl of defaultRelays) {
             searchRelay(query, relayUrl).then(() => {
                 hideSpinner(searchResults); // Hide spinner when search is done
@@ -403,17 +403,17 @@ document.addEventListener("DOMContentLoaded", () => {
     function fetchUserNotes(pubkey, feedElement, isProfileModal = false) {
         feedElement.innerHTML = ''; // Clear previous notes
         showSpinner(feedElement); // Show spinner for profile feed
-
+    
         const userRelays = [...defaultRelays];
         const subscriptionId = generateRandomHex(32);
         const aggregatedEvents = new Map();
-
+    
         userRelays.forEach(relayUrl => {
             const ws = new WebSocket(relayUrl);
-
+    
             ws.onopen = () => {
                 console.log(`Fetching user notes from relay: ${relayUrl}`);
-
+    
                 const reqMessage = JSON.stringify([
                     "REQ",
                     subscriptionId,
@@ -421,7 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ]);
                 ws.send(reqMessage);
             };
-
+    
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 if (msg[0] === "EVENT") {
@@ -433,12 +433,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             };
-
+    
             ws.onerror = (error) => {
                 console.error(`Error fetching user notes from relay ${relayUrl}:`, error);
                 hideSpinner(feedElement); // Hide spinner on error
             };
-
+    
             ws.onclose = () => {
                 console.log(`Closed connection to relay: ${relayUrl}`);
             };
@@ -1565,7 +1565,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const globalFeed = document.getElementById('globalFeed');
         globalFeed.innerHTML = ''; // Clear the existing global timeline
         showSpinner(globalFeed); // Show spinner for global timeline
-
+    
         for (const relayUrl of defaultRelays) {
             subscribeToRelayForGlobalFeed(relayUrl);
         }
@@ -1632,60 +1632,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Function to fetch replies for specific saved event IDs
-    // Function to fetch replies for specific saved event IDs
     function fetchReplies() {
         const repliesFeed = document.getElementById('repliesFeed');
         repliesFeed.innerHTML = ''; // Clear the existing replies feed
         showSpinner(repliesFeed); // Show spinner for replies feed
-
+    
         const eventIds = getSavedEventIds();
         if (eventIds.length === 0) {
             console.log('No event IDs found to fetch replies for.');
             hideSpinner(repliesFeed); // Hide spinner if no event IDs
-            showNoRepliesMessage(repliesFeed); // Show "No replies yet" message
             return;
         }
-
-        let repliesReceived = false;
-
-        // Function to handle WebSocket closure after all connections are done
-        const handleAllSocketsClosed = () => {
-            if (!repliesReceived) {
-                hideSpinner(repliesFeed); // Ensure spinner is hidden
-                showNoRepliesMessage(repliesFeed); // Show "No replies yet" message
-            }
-        };
-
-        let wsCount = defaultRelays.length;
+    
         for (const relayUrl of defaultRelays) {
-            const ws = subscribeToRepliesInitialLoad(relayUrl, eventIds);
-
-            ws.addEventListener('message', () => {
-                repliesReceived = true;
-            });
-
-            ws.addEventListener('close', () => {
-                wsCount -= 1;
-                if (wsCount === 0) {
-                    handleAllSocketsClosed();
-                }
-            });
-
-            ws.addEventListener('error', () => {
-                wsCount -= 1;
-                if (wsCount === 0) {
-                    handleAllSocketsClosed();
-                }
-            });
+            subscribeToRepliesInitialLoad(relayUrl, eventIds);
         }
-    }
-
-    // Function to show "No replies yet" message
-    function showNoRepliesMessage(repliesFeed) {
-        const noRepliesMessage = document.createElement('div');
-        noRepliesMessage.className = 'no-replies-message';
-        noRepliesMessage.textContent = 'No replies yet.';
-        repliesFeed.appendChild(noRepliesMessage);
     }
 
     // Save event IDs in localStorage
@@ -1704,16 +1665,16 @@ document.addEventListener("DOMContentLoaded", () => {
     function renewReplySubscriptions() {
         const eventIds = getSavedEventIds();
         if (eventIds.length === 0) return;
-
+    
         console.log('Renewing reply subscriptions for event IDs:', eventIds);
-
+    
         for (const relayUrl of defaultRelays) {
             if (wsRelays[relayUrl]) {
                 // If the WebSocket is in the OPEN state, send the subscription message immediately
                 if (wsRelays[relayUrl].readyState === WebSocket.OPEN) {
                     console.log(`WebSocket is open for relay: ${relayUrl}, sending subscription request.`);
                     sendReplySubscription(wsRelays[relayUrl], eventIds);
-                }
+                } 
                 // If the WebSocket is still connecting, add a listener to send the subscription once it opens
                 else if (wsRelays[relayUrl].readyState === WebSocket.CONNECTING) {
                     console.log(`WebSocket is connecting for relay: ${relayUrl}, adding event listener for open.`);
@@ -1747,7 +1708,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         spinner.style.display = 'block';
     }
-
+    
     function hideSpinner(feedElement) {
         const spinner = feedElement.querySelector('.spinner');
         if (spinner) {

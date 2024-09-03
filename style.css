@@ -692,11 +692,3 @@ footer button[data-npub]:active {
     background-color: #fff3cd;
     color: #856404;
 }
-
-.no-replies-message {
-    text-align: center;
-    padding: 10px;
-    border-radius: 4px;
-    background-color: #fff3cd;
-    color: #856404;
-}
