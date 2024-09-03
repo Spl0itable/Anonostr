@@ -163,7 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const followingFeed = document.getElementById('followingFeed');
         followingFeed.innerHTML = ''; // Clear the existing following timeline
         showSpinner(followingFeed); // Show spinner for following timeline
-    
+
         const following = getFollowingPubkeys();
         if (following.length === 0) {
             // Create and insert the "not following anyone" message directly in the following timeline
@@ -171,14 +171,14 @@ document.addEventListener("DOMContentLoaded", () => {
             noFollowingMessage.className = 'no-following-message';
             noFollowingMessage.textContent = 'You are not following anyone yet.';
             followingFeed.appendChild(noFollowingMessage);
-            
+
             hideSpinner(followingFeed); // Hide the spinner since there's no content to load
             return;
         }
-    
+
         for (const relayUrl of defaultRelays) {
             const ws = new WebSocket(relayUrl);
-    
+
             ws.onopen = () => {
                 const subscriptionId = generateRandomHex(32);
                 const reqMessage = JSON.stringify([
@@ -187,7 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     { kinds: [1], authors: following, limit: 100 }
                 ]);
                 ws.send(reqMessage);
-    
+
                 // Subscribe to kind 0 events to get display names and avatars
                 const profileReqMessage = JSON.stringify([
                     "REQ",
@@ -196,21 +196,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 ]);
                 ws.send(profileReqMessage);
             };
-    
+
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 if (msg[0] === "EVENT") {
                     const nostrEvent = msg[2];
-    
+
                     if (nostrEvent.kind === 0) {
                         // Cache the profile data
                         cacheProfile(nostrEvent);
-    
+
                         // Update any existing timeline items with the new profile data
                         updateTimelineItemsWithProfileData(nostrEvent.pubkey);
                     } else if (nostrEvent.kind === 1 && !seenEventIds.has(nostrEvent.id)) {
                         seenEventIds.add(nostrEvent.id);
-    
+
                         // Immediately render the timeline item
                         const newTimelineItem = createTimelineItem(nostrEvent);
                         followingFeed.append(newTimelineItem);
@@ -218,12 +218,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             };
-    
+
             ws.onerror = (error) => {
                 console.error(`Error fetching following timeline from relay ${relayUrl}:`, error);
                 hideSpinner(followingFeed); // Hide spinner on error
             };
-    
+
             ws.onclose = () => {
                 console.log(`Closed connection to relay: ${relayUrl}`);
             };
@@ -276,7 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
         searchResults.style.display = 'block';
         searchModal.style.display = 'flex';
         showSpinner(searchResults); // Show spinner for search results
-    
+
         for (const relayUrl of defaultRelays) {
             searchRelay(query, relayUrl).then(() => {
                 hideSpinner(searchResults); // Hide spinner when search is done
@@ -403,17 +403,17 @@ document.addEventListener("DOMContentLoaded", () => {
     function fetchUserNotes(pubkey, feedElement, isProfileModal = false) {
         feedElement.innerHTML = ''; // Clear previous notes
         showSpinner(feedElement); // Show spinner for profile feed
-    
+
         const userRelays = [...defaultRelays];
         const subscriptionId = generateRandomHex(32);
         const aggregatedEvents = new Map();
-    
+
         userRelays.forEach(relayUrl => {
             const ws = new WebSocket(relayUrl);
-    
+
             ws.onopen = () => {
                 console.log(`Fetching user notes from relay: ${relayUrl}`);
-    
+
                 const reqMessage = JSON.stringify([
                     "REQ",
                     subscriptionId,
@@ -421,7 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ]);
                 ws.send(reqMessage);
             };
-    
+
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 if (msg[0] === "EVENT") {
@@ -433,12 +433,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             };
-    
+
             ws.onerror = (error) => {
                 console.error(`Error fetching user notes from relay ${relayUrl}:`, error);
                 hideSpinner(feedElement); // Hide spinner on error
             };
-    
+
             ws.onclose = () => {
                 console.log(`Closed connection to relay: ${relayUrl}`);
             };
@@ -496,12 +496,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (timeSinceLastSubmit < rateLimitSeconds) {
                 const timeLeft = rateLimitSeconds - timeSinceLastSubmit;
-                showNote(`Please wait ${timeLeft} second(s) before submitting again.`, 'warning');
+                showNote(`Please wait ${timeLeft} second(s) before submitting again.`, 'warning', submitButton);
                 return;
             }
 
             // Reset the status note and show the spinner
-            showNote('', '');
+            showNote('', '', submitButton); // Ensure the note is cleared
             spinner.style.display = 'inline-block';
             submitButton.disabled = true;
 
@@ -511,7 +511,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let note = noteInput.value.trim();
             if (!note) {
-                showNote('Please enter a note.', 'error');
+                showNote('Please enter a note.', 'error', submitButton);
                 resetFormState();
                 return;
             }
@@ -522,25 +522,22 @@ document.addEventListener("DOMContentLoaded", () => {
             let isRootSet = false;
             let firstMatchIsNote = false;
 
-            // Handle mentions and note references: @npub..., @nprofile..., @note...
+            // Handle mentions and note references
             const matches = note.match(bech32Regex);
             if (matches) {
                 for (const match of matches) {
                     try {
-                        // Decode the bech32 entity to get the hex key or ID
                         const decoded = NostrTools.nip19.decode(match.substring(1));
                         const hexKey = decoded.data;
 
                         if (decoded.type === 'note') {
-                            // If the @note... is at the beginning, treat it as a reply and don't convert it to nostr:note
                             if (!isRootSet && note.startsWith(match)) {
                                 rootEventId = hexKey;
-                                tags.unshift(["e", hexKey, "", "root"]); // Ensure root event is first
+                                tags.unshift(["e", hexKey, "", "root"]);
                                 note = note.replace(match, '').trim();
                                 isRootSet = true;
                                 firstMatchIsNote = true;
                             } else {
-                                // If @note... is not at the beginning, convert to nostr:note
                                 tags.push(["e", hexKey, "", "mention"]);
                                 note = note.replace(match, `nostr:${match.substring(1)}`);
                             }
@@ -553,19 +550,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            // If reply chain is enabled and there's a last event ID, add it as a reply
             if (replyChainCheckbox.checked && lastEventId) {
-                // Add the last event ID as the "reply"
                 tags.push(["e", lastEventId, "", "reply"]);
-
-                // Ensure the root event ID is included if it wasn't set above
                 if (rootEventId && !isRootSet) {
                     tags.unshift(["e", rootEventId, "", "root"]);
                     isRootSet = true;
                 }
             }
 
-            // Handle hashtags: #tag
             const hashtags = note.match(/#\w+/g);
             if (hashtags) {
                 for (const tag of hashtags) {
@@ -583,14 +575,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
             console.log('Event Template:', eventTemplate);
 
-            // Finalize the event (assigns the event ID, pubkey, and signs it)
             const signedEvent = NostrTools.finalizeEvent(eventTemplate, sk);
             lastEventId = signedEvent.id;
 
-            // Store the event ID in localStorage
             saveEventId(lastEventId);
 
-            // If this is the first event, set it as the root for future replies
             if (!rootEventId) {
                 rootEventId = lastEventId;
             }
@@ -601,17 +590,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 let selectedRelays;
 
                 if (torRelaysCheckbox.checked) {
-                    // Use Tor relays if the checkbox is checked
                     selectedRelays = torRelays;
                 } else {
-                    // Otherwise, use default relays
                     selectedRelays = defaultRelays;
                 }
 
                 let relaySuccess = false;
 
                 if (relayHopCheckbox.checked) {
-                    // If relay hop is checked, randomly select a single relay
                     let availableRelays = [...selectedRelays];
 
                     while (!relaySuccess && availableRelays.length > 0) {
@@ -624,27 +610,23 @@ document.addEventListener("DOMContentLoaded", () => {
                             relaySuccess = true;
                             const eventId = signedEvent.id;
                             const eventLink = `https://njump.me/${eventId}`;
-                            showNote(`Anon note sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success');
+                            showNote(`Anon note sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', submitButton);
                             noteInput.value = '';
 
-                            // Update the last submit time in localStorage only on success
                             localStorage.setItem(localStorageKey, currentTime);
 
-                            // Renew subscriptions to include the new event ID
                             renewReplySubscriptions();
                         } else {
-                            // Remove the failed relay from the list
                             availableRelays.splice(randomIndex, 1);
                             console.warn(`Relay hop failed for relay: ${randomRelay}. Trying another relay...`);
                         }
                     }
 
                     if (!relaySuccess) {
-                        showNote('Relay hopping failed for all relays. Please try again later.', 'error');
+                        showNote('Relay hopping failed for all relays. Please try again later.', 'error', submitButton);
                     }
 
                 } else {
-                    // Otherwise, publish to all selected relays
                     const relayResults = await Promise.all(
                         selectedRelays.map(relayUrl => sendNoteToRelay(relayUrl, signedEvent))
                     );
@@ -652,32 +634,27 @@ document.addEventListener("DOMContentLoaded", () => {
                     const successfulRelays = relayResults.filter(result => result.success).length;
 
                     if (successfulRelays === 0) {
-                        // If no relays were successful
-                        showNote('No relays available. Please try again later.', 'error');
+                        showNote('No relays available. Please try again later.', 'error', submitButton);
                     } else {
-                        // Create a link to view the event on njump.me
                         const eventId = signedEvent.id;
                         const eventLink = `https://njump.me/${eventId}`;
-                        showNote(`Anon note sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success');
+                        showNote(`Anon note sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', submitButton);
                         noteInput.value = '';
 
-                        // Update the last submit time in localStorage only on success
                         localStorage.setItem(localStorageKey, currentTime);
 
-                        // Renew subscriptions to include the new event ID
                         renewReplySubscriptions();
                     }
                 }
             } catch (error) {
                 console.error('Failed to send note:', error);
-                showNote('Failed to send anon note. Please try again.', 'error');
+                showNote('Failed to send anon note. Please try again.', 'error', submitButton);
             } finally {
-                // Reset the form state (hide spinner, enable button)
                 resetFormState();
             }
         } catch (error) {
             console.error('Error in form submission process:', error);
-            showNote('An unexpected error occurred. Please try again.', 'error');
+            showNote('An unexpected error occurred. Please try again.', 'error', submitButton);
             resetFormState();
         }
     });
@@ -687,7 +664,13 @@ document.addEventListener("DOMContentLoaded", () => {
         submitButton.disabled = false;
     }
 
-    function showNote(note, type) {
+    function showNote(note, type, button) {
+        let statusNote = button.nextElementSibling;
+        if (!statusNote || !statusNote.classList.contains('note')) {
+            statusNote = document.createElement('div');
+            statusNote.className = 'note';
+            button.parentNode.insertBefore(statusNote, button.nextSibling);
+        }
         statusNote.innerHTML = note;
         statusNote.className = `note ${type}`;
         statusNote.style.display = note ? 'block' : 'none';
@@ -940,15 +923,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function sendReply(content, parentId, timelineItem, replyForm) {
-        const replyStatusNote = replyForm.querySelector('.note') || document.createElement('div');
-        replyStatusNote.className = 'note';
-        replyStatusNote.style.display = 'none';
-        replyForm.appendChild(replyStatusNote);
-
         const sendReplyButton = replyForm.querySelector('.send-reply-button');
         const spinner = document.createElement('div');
         spinner.className = 'spinner';
         sendReplyButton.appendChild(spinner);
+
+        const replyStatusNote = replyForm.querySelector('.note') || document.createElement('div');
+        replyStatusNote.className = 'note';
+        replyStatusNote.style.display = 'none';
+        replyForm.appendChild(replyStatusNote);
 
         try {
             const currentTime = Math.floor(Date.now() / 1000);
@@ -961,15 +944,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // Show spinner and disable the button
             spinner.style.display = 'inline-block';
             sendReplyButton.disabled = true;
 
-            // Generate a new key pair for the reply
             const sk = NostrTools.generateSecretKey();
             const pubKey = NostrTools.getPublicKey(sk);
 
-            const tags = [["e", parentId, "", "reply"]]; // Tag the reply to the parent event
+            const tags = [["e", parentId, "", "reply"]];
 
             const replyChainChecked = replyForm.querySelector('.reply-chain-checkbox').checked;
             const relayHopChecked = replyForm.querySelector('.relay-hop-checkbox').checked;
@@ -993,7 +974,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             console.log('Reply Event Template:', eventTemplate);
 
-            // Finalize the event (assigns the event ID, pubkey, and signs it)
             const signedEvent = NostrTools.finalizeEvent(eventTemplate, sk);
             const replyEventId = signedEvent.id;
 
@@ -1003,17 +983,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 let selectedRelays;
 
                 if (torRelaysChecked) {
-                    // Use Tor relays if the checkbox is checked
                     selectedRelays = torRelays;
                 } else {
-                    // Otherwise, use default relays
                     selectedRelays = defaultRelays;
                 }
 
                 let relaySuccess = false;
 
                 if (relayHopChecked) {
-                    // If relay hop is checked, randomly select a single relay
                     let availableRelays = [...selectedRelays];
 
                     while (!relaySuccess && availableRelays.length > 0) {
@@ -1028,16 +1005,12 @@ document.addEventListener("DOMContentLoaded", () => {
                             showReplyNote(`Reply sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
                             timelineItem.querySelector('.reply-textarea').value = '';
 
-                            // Save the event ID in localStorage
                             saveEventId(replyEventId);
 
-                            // Update the last submit time in localStorage only on success
                             localStorage.setItem(localStorageKey, currentTime);
 
-                            // Renew subscriptions to include the new event ID
                             renewReplySubscriptions();
                         } else {
-                            // Remove the failed relay from the list
                             availableRelays.splice(randomIndex, 1);
                             console.warn(`Relay hop failed for relay: ${randomRelay}. Trying another relay...`);
                         }
@@ -1048,7 +1021,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
 
                 } else {
-                    // Otherwise, publish to all selected relays
                     const relayResults = await Promise.all(
                         selectedRelays.map(relayUrl => sendNoteToRelay(relayUrl, signedEvent))
                     );
@@ -1056,20 +1028,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     const successfulRelays = relayResults.filter(result => result.success).length;
 
                     if (successfulRelays === 0) {
-                        // If no relays were successful
                         showReplyNote('No relays available. Please try again later.', 'error', replyStatusNote);
                     } else {
                         const eventLink = `https://njump.me/${replyEventId}`;
                         showReplyNote(`Reply sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
                         timelineItem.querySelector('.reply-textarea').value = '';
 
-                        // Save the event ID in localStorage
                         saveEventId(replyEventId);
 
-                        // Update the last submit time in localStorage only on success
                         localStorage.setItem(localStorageKey, currentTime);
 
-                        // Renew subscriptions to include the new event ID
                         renewReplySubscriptions();
                     }
                 }
@@ -1077,14 +1045,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.error('Failed to send reply:', error);
                 showReplyNote('Failed to send reply. Please try again.', 'error', replyStatusNote);
             } finally {
-                // Hide the spinner and enable the button
                 spinner.style.display = 'none';
                 sendReplyButton.disabled = false;
             }
         } catch (error) {
             console.error('Error in reply submission process:', error);
             showReplyNote('An unexpected error occurred. Please try again.', 'error', replyStatusNote);
-            // Hide the spinner and enable the button
             spinner.style.display = 'none';
             sendReplyButton.disabled = false;
         }
@@ -1565,7 +1531,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const globalFeed = document.getElementById('globalFeed');
         globalFeed.innerHTML = ''; // Clear the existing global timeline
         showSpinner(globalFeed); // Show spinner for global timeline
-    
+
         for (const relayUrl of defaultRelays) {
             subscribeToRelayForGlobalFeed(relayUrl);
         }
@@ -1636,14 +1602,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const repliesFeed = document.getElementById('repliesFeed');
         repliesFeed.innerHTML = ''; // Clear the existing replies feed
         showSpinner(repliesFeed); // Show spinner for replies feed
-    
+
         const eventIds = getSavedEventIds();
         if (eventIds.length === 0) {
             console.log('No event IDs found to fetch replies for.');
             hideSpinner(repliesFeed); // Hide spinner if no event IDs
             return;
         }
-    
+
         for (const relayUrl of defaultRelays) {
             subscribeToRepliesInitialLoad(relayUrl, eventIds);
         }
@@ -1665,16 +1631,16 @@ document.addEventListener("DOMContentLoaded", () => {
     function renewReplySubscriptions() {
         const eventIds = getSavedEventIds();
         if (eventIds.length === 0) return;
-    
+
         console.log('Renewing reply subscriptions for event IDs:', eventIds);
-    
+
         for (const relayUrl of defaultRelays) {
             if (wsRelays[relayUrl]) {
                 // If the WebSocket is in the OPEN state, send the subscription message immediately
                 if (wsRelays[relayUrl].readyState === WebSocket.OPEN) {
                     console.log(`WebSocket is open for relay: ${relayUrl}, sending subscription request.`);
                     sendReplySubscription(wsRelays[relayUrl], eventIds);
-                } 
+                }
                 // If the WebSocket is still connecting, add a listener to send the subscription once it opens
                 else if (wsRelays[relayUrl].readyState === WebSocket.CONNECTING) {
                     console.log(`WebSocket is connecting for relay: ${relayUrl}, adding event listener for open.`);
@@ -1708,7 +1674,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         spinner.style.display = 'block';
     }
-    
+
     function hideSpinner(feedElement) {
         const spinner = feedElement.querySelector('.spinner');
         if (spinner) {
