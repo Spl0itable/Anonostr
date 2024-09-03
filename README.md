@@ -7,6 +7,8 @@
 ## Features
 - **Anonymous Note Sending**: Generates and burns a new key pair on each submission to ensure anonymity.
 - **Tweetdeck View**: On desktop, get a column view with Global and Replies.
+- **Follow People**: Follow your fav users without them knowing.
+- **Replies Notifications**: Receive all replies to your anon notes.
 - **Reply Chain**: Option to link notes in a threaded conversation for better context.
 - **Relay Hop**: Adds obfuscation by spreading notes across different relays randomly.
 - **Tor Relays**: Supports using onion service relays.
