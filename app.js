@@ -168,7 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (following.length === 0) {
             // Create and insert the "not following anyone" message directly in the following timeline
             const noFollowingMessage = document.createElement('div');
-            noFollowingMessage.className = 'no-following-message';
+            noFollowingMessage.className = 'note.warning';
             noFollowingMessage.textContent = 'You are not following anyone yet.';
             followingFeed.appendChild(noFollowingMessage);
             
@@ -1721,14 +1721,3 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchFollowingTimeline();
     fetchReplies();
 });
-
-// Initialize service worker
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/service-worker.js')
-        .then(registration => {
-            console.log('Service Worker registered with scope:', registration.scope);
-        })
-        .catch(error => {
-            console.log('Service Worker registration failed:', error);
-        });
-}
