@@ -1,19 +1,35 @@
-const CACHE_NAME = 'anonostr-cache-v1.4.8';
+const CACHE_NAME = 'anonostr-cache-v1.5.8';
 const CACHE_EXPIRATION_HOURS = 4;
 const LAST_CACHE_CLEAR_TIME_KEY = 'anonostr-last-cache-clear-time';
 const urlsToCache = [
   '/',
-  '/index.html',
-  '/manifest.json',
-  '/images/anonostr-icon.png',
-  '/images/anonostr-hero.png',
-  '/styles.css',
-  '/app.js',
+  '/index.html?v=1.5.8',
+  '/manifest.json?v=1.5.8',
+  '/images/anonostr-icon.png?v=1.5.8',
+  '/images/anonostr-hero.png?v=1.5.8',
+  '/styles.css?v=1.5.8',
+  '/app.js?v=1.5.8',
   // External Resources
   'https://unpkg.com/nostr-tools/lib/nostr.bundle.js',
   'https://buttons.github.io/buttons.js',
   'https://cdn.jsdelivr.net/npm/nostr-zap@1.1.0'
 ];
+
+// Helper function to get or set the last cache clear time
+async function getLastCacheClearTime() {
+  const cache = await caches.open(CACHE_NAME);
+  const response = await cache.match(LAST_CACHE_CLEAR_TIME_KEY);
+  if (response) {
+    const text = await response.text();
+    return parseInt(text, 10);
+  }
+  return null;
+}
+
+async function setLastCacheClearTime(time) {
+  const cache = await caches.open(CACHE_NAME);
+  await cache.put(LAST_CACHE_CLEAR_TIME_KEY, new Response(time.toString()));
+}
 
 // Install the service worker
 self.addEventListener('install', event => {
@@ -59,11 +75,11 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     (async () => {
       const cacheWhitelist = [CACHE_NAME];
+      const now = Date.now();
 
       // Check if cache needs to be cleared
-      const lastCacheClearTime = localStorage.getItem(LAST_CACHE_CLEAR_TIME_KEY);
-      const now = Date.now();
-      const hoursSinceLastClear = (now - lastCacheClearTime) / (1000 * 60 * 60);
+      const lastCacheClearTime = await getLastCacheClearTime();
+      const hoursSinceLastClear = lastCacheClearTime ? (now - lastCacheClearTime) / (1000 * 60 * 60) : Infinity;
 
       if (hoursSinceLastClear > CACHE_EXPIRATION_HOURS) {
         // Clear old caches
@@ -84,10 +100,11 @@ self.addEventListener('activate', event => {
         await cache.addAll(urlsToCache);
 
         // Update the last cache clear time
-        localStorage.setItem(LAST_CACHE_CLEAR_TIME_KEY, now);
+        await setLastCacheClearTime(now);
       }
 
       // Delete any caches that aren't in the whitelist
+      const cacheNames = await caches.keys();
       await Promise.all(
         cacheNames.map(cacheName => {
           if (!cacheWhitelist.includes(cacheName)) {

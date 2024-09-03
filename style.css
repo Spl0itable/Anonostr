@@ -78,23 +78,20 @@ h1 {
     }
 
     textarea {
-        flex-grow: 1;
+        height: 150px;
         padding: 10px;
         margin-bottom: 15px;
         border-radius: 4px;
         border: 1px solid #ccc;
-        min-height: 150px;
         box-sizing: border-box;
         overflow: auto;
-        resize: vertical;
+        resize: none;
     }
 
     footer {
         text-align: center;
         padding: 20px 0;
         background-color: #fff;
-        position: sticky;
-        bottom: 0;
         width: 100%;
         margin-top: auto;
     }
@@ -369,6 +366,7 @@ footer button[data-npub]:active {
     flex-direction: column;
     gap: 10px;
     text-align: left;
+    margin-bottom: 10px;
 }
 
 .timeline-header {
@@ -466,6 +464,7 @@ footer button[data-npub]:active {
     text-align: center;
     padding-bottom: 20px;
     position: relative;
+    min-height: 100px;
 }
 
 .profile-banner {
@@ -632,7 +631,7 @@ footer button[data-npub]:active {
     color: #fff;
     border: none;
     border-radius: 4px;
-    padding: 5px 10px;
+    padding: 5px 10px; 
     cursor: pointer;
     font-size: 14px;
     display: none;
@@ -651,4 +650,37 @@ footer button[data-npub]:active {
 .profile-view {
     overflow-y: auto;
     max-height: 80vh;
+}
+
+.follow-button {
+    position: absolute;
+    right: 10px;
+    top: 110px;
+    background-color: #7f00ff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.follow-button:hover {
+    background-color: indigo;
+}
+
+.toggle-active {
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.toggle-inactive {
+    color: grey;
+    cursor: pointer;
+}
+
+.toggle-active:hover,
+.toggle-inactive:hover {
+    text-decoration: underline;
 }

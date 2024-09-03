@@ -24,7 +24,7 @@
     <meta name="apple-mobile-web-app-title" content="Anonostr">
     <link rel="apple-touch-icon" href="./images/anonostr-icon.png">
     <!-- Anonostr Styling -->
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
@@ -111,11 +111,21 @@
 
     <div class="main-content">
         <div class="global-header">
-            <h2>Global</h2>
+            <h2>
+                <span id="followingToggle" class="toggle-active">Following</span> |
+                <span id="globalToggle" class="toggle-inactive">Global</span>
+            </h2>
             <input type="text" id="searchInput" placeholder="Search..." class="search-input">
         </div>
-        <div class="timeline-feed" id="timelineFeed">
-            <!-- Timeline items are dynamically injected here -->
+
+        <!-- Following Timeline Container -->
+        <div class="timeline-feed" id="followingFeed" style="display: block;">
+            <!-- Following timeline items are dynamically injected here -->
+        </div>
+
+        <!-- Global Timeline Container -->
+        <div class="timeline-feed" id="globalFeed" style="display: none;">
+            <!-- Global timeline items are dynamically injected here -->
         </div>
     </div>
 
@@ -129,14 +139,16 @@
     <!-- Search Modal -->
     <div class="search-modal" id="searchModal">
         <div class="search-modal-content">
-            <button class="back-button" id="backButton" style="display: none;">← Back</button>
             <span class="close-search-modal" id="closeSearchModal">&times;</span>
-
             <div class="search-results" id="searchResults">
                 <!-- Search results are dynamically injected here -->
             </div>
 
+            <!-- Profile View in Search Modal -->
             <div class="profile-view" id="profileView" style="display: none;">
+                <button class="back-button" id="backButton" style="display: none;">← Back</button>
+                <!-- Follow Button -->
+                <button class="follow-button" id="searchModalFollowButton">Follow</button>
                 <img src="" alt="Banner Image" class="profile-banner" id="modalProfileBanner">
                 <img src="" alt="Avatar" class="profile-avatar" id="modalProfileAvatar">
                 <div class="profile-info" id="modalProfileInfo">
@@ -156,6 +168,8 @@
     <div class="profile-modal" id="profileModal">
         <div class="profile-modal-content">
             <span class="close-modal" id="closeModal">&times;</span>
+            <!-- Follow Button -->
+            <button class="follow-button" id="modalFollowButton">Follow</button>
             <img src="" alt="Banner Image" class="profile-banner" id="profileBanner">
             <img src="" alt="Avatar" class="profile-avatar" id="profileAvatar">
             <div class="profile-info" id="profileInfo">
@@ -169,6 +183,7 @@
             </div>
         </div>
     </div>
+
 
     <!-- Include nostr-tools Library -->
     <script src="https://unpkg.com/nostr-tools/lib/nostr.bundle.js" defer></script>

@@ -1,3 +1,7 @@
+## v1.5.8 - 2024-01-03
+
+- New: following users
+
 ## v1.4.8 - 2024-01-02
 
 - New: search feature

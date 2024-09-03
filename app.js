@@ -1,4 +1,32 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // Default relays
+    const defaultRelays = [
+        'wss://relay.damus.io',
+        'wss://relay.primal.net',
+        'wss://relay.nostr.band'
+    ];
+
+    // Tor relays
+    const torRelays = [
+        'ws://oxtrdevav64z64yb7x6rjg4ntzqjhedm5b5zjqulugknhzr46ny2qbad.onion',
+        'ws://2jsnlhfnelig5acq6iacydmzdbdmg7xwunm4xl6qwbvzacw4lwrjmlyd.onion',
+        'ws://nostrnetl6yd5whkldj3vqsxyyaq3tkuspy23a3qgx7cdepb4564qgqd.onion'
+    ];
+
+    const rateLimitSeconds = 30; // 30-second delay between note sending
+    const localStorageKey = 'lastSubmitTime';
+    const eventIdsStorageKey = 'submittedEventIds';
+    const seenEventIds = new Set();
+    const seenReplyEventIds = new Set();
+    const profileCache = {};
+    const profileFetchQueue = {};
+
+    let rootEventId = null;
+    let lastEventId = null;
+
+    // WebSocket references for managing subscriptions
+    const wsRelays = {};
+
     const statusNote = document.getElementById('statusNote');
     const form = document.getElementById('eventForm');
     const noteInput = document.getElementById('note');
@@ -23,6 +51,196 @@ document.addEventListener("DOMContentLoaded", () => {
     const modalProfileLnurl = document.getElementById('modalProfileLnurl');
     const modalProfileFeed = document.getElementById('modalProfileFeed');
     const searchInput = document.getElementById('searchInput');
+    const followingKey = 'followingPubkeys';
+    const followingToggle = document.getElementById('followingToggle');
+    const globalToggle = document.getElementById('globalToggle');
+    const modalFollowButton = document.getElementById('modalFollowButton');
+    const searchModalFollowButton = document.getElementById('searchModalFollowButton');
+
+    // Initialize the timeline view
+    let currentTimeline = 'following'; // Default to 'Following'
+
+    // Event listeners for toggle buttons
+    followingToggle.addEventListener('click', () => {
+        switchTimeline('following');
+    });
+
+    globalToggle.addEventListener('click', () => {
+        switchTimeline('global');
+    });
+
+    // Function to handle switching timelines
+    function switchTimeline(timeline) {
+        if (currentTimeline === timeline) return;
+
+        currentTimeline = timeline;
+
+        const followingFeed = document.getElementById('followingFeed');
+        const globalFeed = document.getElementById('globalFeed');
+
+        if (timeline === 'following') {
+            followingToggle.className = 'toggle-active';
+            globalToggle.className = 'toggle-inactive';
+            followingFeed.style.display = 'block';
+            globalFeed.style.display = 'none';
+            fetchFollowingTimeline();
+        } else if (timeline === 'global') {
+            followingToggle.className = 'toggle-inactive';
+            globalToggle.className = 'toggle-active';
+            followingFeed.style.display = 'none';
+            globalFeed.style.display = 'block';
+            fetchTimeline();
+        }
+    }
+
+    // Function to update the follow button state
+    function updateFollowButton(pubkey, button) {
+        const following = getFollowingPubkeys();
+        if (following.includes(pubkey)) {
+            button.textContent = 'Unfollow';
+        } else {
+            button.textContent = 'Follow';
+        }
+    }
+
+    // Function to handle follow/unfollow actions
+    function toggleFollow(pubkey, button) {
+        if (!pubkey) {
+            console.error('Cannot toggle follow state; pubkey is null');
+            return;
+        }
+
+        let following = getFollowingPubkeys();
+
+        console.log('Current following list before toggle:', following);
+
+        if (following.includes(pubkey)) {
+            // Unfollow: Remove the pubkey from the list
+            following = following.filter(pk => pk !== pubkey);
+            console.log(`Unfollowed ${pubkey}. Updated following list:`, following);
+            button.textContent = 'Follow';
+        } else {
+            // Follow: Add the pubkey to the list
+            following.push(pubkey);
+            console.log(`Followed ${pubkey}. Updated following list:`, following);
+            button.textContent = 'Unfollow';
+        }
+
+        // Update the localStorage with the new following list
+        localStorage.setItem(followingKey, JSON.stringify(following));
+        console.log('Updated localStorage:', localStorage.getItem(followingKey));
+
+        // Refresh the following timeline and re-subscribe to replies
+        fetchFollowingTimeline();
+        renewReplySubscriptions(); // Ensure replies column is updated
+    }
+
+    // Get the list of followed pubkeys from localStorage
+    function getFollowingPubkeys() {
+        const following = JSON.parse(localStorage.getItem(followingKey)) || [];
+        console.log('Fetched following list from localStorage:', following);
+        return following;
+    }
+
+    // Get the list of followed pubkeys from localStorage
+    function getFollowingPubkeys() {
+        return JSON.parse(localStorage.getItem(followingKey)) || [];
+    }
+
+    // Event listeners for follow buttons
+    modalFollowButton.addEventListener('click', () => {
+        const pubkey = profileBanner.getAttribute('data-pubkey');
+        toggleFollow(pubkey, modalFollowButton);
+    });
+
+    searchModalFollowButton.addEventListener('click', () => {
+        const pubkey = modalProfileBanner.getAttribute('data-pubkey');
+        toggleFollow(pubkey, searchModalFollowButton);
+    });
+
+    // Function to fetch the timeline for followed users
+    function fetchFollowingTimeline() {
+        const followingFeed = document.getElementById('followingFeed');
+        followingFeed.innerHTML = ''; // Clear the existing following timeline
+        showSpinner(followingFeed); // Show spinner for following timeline
+    
+        const following = getFollowingPubkeys();
+        if (following.length === 0) {
+            // Create and insert the "not following anyone" message directly in the following timeline
+            const noFollowingMessage = document.createElement('div');
+            noFollowingMessage.className = 'no-following-message';
+            noFollowingMessage.textContent = 'You are not following anyone yet.';
+            followingFeed.appendChild(noFollowingMessage);
+            
+            hideSpinner(followingFeed); // Hide the spinner since there's no content to load
+            return;
+        }
+    
+        for (const relayUrl of defaultRelays) {
+            const ws = new WebSocket(relayUrl);
+    
+            ws.onopen = () => {
+                const subscriptionId = generateRandomHex(32);
+                const reqMessage = JSON.stringify([
+                    "REQ",
+                    subscriptionId,
+                    { kinds: [1], authors: following, limit: 100 }
+                ]);
+                ws.send(reqMessage);
+    
+                // Subscribe to kind 0 events to get display names and avatars
+                const profileReqMessage = JSON.stringify([
+                    "REQ",
+                    generateRandomHex(32),
+                    { kinds: [0], authors: following }
+                ]);
+                ws.send(profileReqMessage);
+            };
+    
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg[0] === "EVENT") {
+                    const nostrEvent = msg[2];
+    
+                    if (nostrEvent.kind === 0) {
+                        // Cache the profile data
+                        cacheProfile(nostrEvent);
+    
+                        // Update any existing timeline items with the new profile data
+                        updateTimelineItemsWithProfileData(nostrEvent.pubkey);
+                    } else if (nostrEvent.kind === 1 && !seenEventIds.has(nostrEvent.id)) {
+                        seenEventIds.add(nostrEvent.id);
+    
+                        // Immediately render the timeline item
+                        const newTimelineItem = createTimelineItem(nostrEvent);
+                        followingFeed.append(newTimelineItem);
+                        hideSpinner(followingFeed); // Hide spinner on first message
+                    }
+                }
+            };
+    
+            ws.onerror = (error) => {
+                console.error(`Error fetching following timeline from relay ${relayUrl}:`, error);
+                hideSpinner(followingFeed); // Hide spinner on error
+            };
+    
+            ws.onclose = () => {
+                console.log(`Closed connection to relay: ${relayUrl}`);
+            };
+        }
+    }
+
+    // Function to update timeline items with new profile data
+    function updateTimelineItemsWithProfileData(pubkey) {
+        const profile = getProfile(pubkey);
+        const timelineItems = document.querySelectorAll(`.timeline-item .author[data-pubkey="${pubkey}"]`);
+
+        timelineItems.forEach(item => {
+            const avatarElement = item.closest('.timeline-header').querySelector('.avatar');
+            item.textContent = profile.name;
+            avatarElement.src = profile.avatar;
+        });
+    }
 
     searchInput.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
@@ -53,11 +271,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function openSearchModal(query) {
         resetModal();
+        const searchResults = document.getElementById('searchResults');
+        searchResults.innerHTML = ''; // Clear previous search results
         searchResults.style.display = 'block';
         searchModal.style.display = 'flex';
-
+        showSpinner(searchResults); // Show spinner for search results
+    
         for (const relayUrl of defaultRelays) {
-            searchRelay(query, relayUrl);
+            searchRelay(query, relayUrl).then(() => {
+                hideSpinner(searchResults); // Hide spinner when search is done
+            }).catch(() => {
+                hideSpinner(searchResults); // Hide spinner on error
+            });
         }
     }
 
@@ -125,18 +350,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Profile view in search results
     function openProfileView(pubkey) {
+        if (!pubkey) {
+            console.error('pubkey is undefined when opening profile view.');
+            return;
+        }
+
         const profile = getProfile(pubkey);
-    
+
+        // Set the pubkey as a data attribute on the banner for easy access
+        modalProfileBanner.setAttribute('data-pubkey', pubkey); // Ensure this is the correct element
+
         updateProfileView(profile);
+        updateFollowButton(pubkey, searchModalFollowButton);
 
         modalProfileFeed.innerHTML = '';
 
         fetchUserNotes(pubkey, modalProfileFeed, false);
-    
+
         // Switch from search results to profile view
         searchResults.style.display = 'none';
         profileView.style.display = 'block';
         backButton.style.display = 'block';
+        searchModalFollowButton.style.display = 'block';
     }
 
     function updateProfileView(profile) {
@@ -154,20 +389,31 @@ document.addEventListener("DOMContentLoaded", () => {
         profileView.style.display = 'none';
         backButton.style.display = 'none';
         searchResults.innerHTML = '';
-        modalProfileFeed.innerHTML = ''; 
+        modalProfileFeed.innerHTML = '';
+    }
+
+    // Fetch the initial timeline based on the current view
+    if (currentTimeline === 'following') {
+        fetchFollowingTimeline();
+    } else {
+        fetchTimeline();
     }
 
     // Function to fetch user notes and display them in the profile view
-    function fetchUserNotes(pubkey) {
+    function fetchUserNotes(pubkey, feedElement, isProfileModal = false) {
+        feedElement.innerHTML = ''; // Clear previous notes
+        showSpinner(feedElement); // Show spinner for profile feed
+    
         const userRelays = [...defaultRelays];
         const subscriptionId = generateRandomHex(32);
         const aggregatedEvents = new Map();
-
+    
         userRelays.forEach(relayUrl => {
             const ws = new WebSocket(relayUrl);
+    
             ws.onopen = () => {
                 console.log(`Fetching user notes from relay: ${relayUrl}`);
-
+    
                 const reqMessage = JSON.stringify([
                     "REQ",
                     subscriptionId,
@@ -175,7 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ]);
                 ws.send(reqMessage);
             };
-
+    
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 if (msg[0] === "EVENT") {
@@ -183,14 +429,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (!aggregatedEvents.has(nostrEvent.id)) {
                         aggregatedEvents.set(nostrEvent.id, nostrEvent);
                         insertUserNoteInProfileView(nostrEvent);
+                        hideSpinner(feedElement); // Hide spinner on first message
                     }
                 }
             };
-
+    
             ws.onerror = (error) => {
                 console.error(`Error fetching user notes from relay ${relayUrl}:`, error);
+                hideSpinner(feedElement); // Hide spinner on error
             };
-
+    
             ws.onclose = () => {
                 console.log(`Closed connection to relay: ${relayUrl}`);
             };
@@ -202,32 +450,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const noteItem = createTimelineItem(event);
         modalProfileFeed.appendChild(noteItem);
     }
-
-    // Default relays
-    const defaultRelays = [
-        'wss://relay.damus.io',
-        'wss://relay.primal.net',
-        'wss://relay.nostr.band'
-    ];
-
-    // Tor relays
-    const torRelays = [
-        'ws://oxtrdevav64z64yb7x6rjg4ntzqjhedm5b5zjqulugknhzr46ny2qbad.onion',
-        'ws://2jsnlhfnelig5acq6iacydmzdbdmg7xwunm4xl6qwbvzacw4lwrjmlyd.onion',
-        'ws://nostrnetl6yd5whkldj3vqsxyyaq3tkuspy23a3qgx7cdepb4564qgqd.onion'
-    ];
-
-    const rateLimitSeconds = 30; // 30-second delay between note sending
-    const localStorageKey = 'lastSubmitTime';
-    const eventIdsStorageKey = 'submittedEventIds';
-    const seenEventIds = new Set();
-    const profileCache = {}; 
-
-    let rootEventId = null; 
-    let lastEventId = null;
-
-    // WebSocket references for managing subscriptions
-    const wsRelays = {};
 
     function generateRandomHex(length) {
         const characters = '0123456789abcdef';
@@ -568,6 +790,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Convert image URLs in the content to <img> tags
         const contentWithImages = convertMediaUrlsToElements(event.content);
 
+        // Construct the HTML structure
         timelineItem.innerHTML = `
     <div class="timeline-header">
     <img src="${authorAvatar}" alt="${authorName}'s avatar" class="avatar">
@@ -578,20 +801,29 @@ document.addEventListener("DOMContentLoaded", () => {
     <span class="reply-icon" data-note-id="${event.id}">↩️</span>
     `;
 
+        // Add event listener to reply icon
         const replyIcon = timelineItem.querySelector('.reply-icon');
-        replyIcon.addEventListener('click', () => {
-            handleReplyIconClick(timelineItem, event.id);
-        });
+        if (replyIcon) {
+            replyIcon.addEventListener('click', () => {
+                handleReplyIconClick(timelineItem, event.id);
+            });
+        }
 
+        // Add event listener to author's name
         const authorNameElement = timelineItem.querySelector('.author');
-        authorNameElement.addEventListener('click', () => {
-            openProfileModal(authorHex);
-        });
+        if (authorNameElement) {
+            authorNameElement.addEventListener('click', () => {
+                openProfileModal(authorHex);
+            });
+        }
 
+        // Add event listener to avatar image
         const avatarElement = timelineItem.querySelector('.avatar');
-        avatarElement.addEventListener('click', () => {
-            openProfileModal(authorHex);
-        });
+        if (avatarElement) {
+            avatarElement.addEventListener('click', () => {
+                openProfileModal(authorHex);
+            });
+        }
 
         return timelineItem;
     }
@@ -601,9 +833,7 @@ document.addEventListener("DOMContentLoaded", () => {
         replyItem.className = 'reply-item';
 
         const authorHex = event.pubkey;
-
-        // Get the author's display name and avatar
-        const { name: authorName, avatar: authorAvatar } = getProfile(authorHex);
+        const profile = getProfile(authorHex);
 
         // Convert the Unix timestamp to a human-readable format
         const timestamp = new Date(event.created_at * 1000).toLocaleString();
@@ -611,27 +841,30 @@ document.addEventListener("DOMContentLoaded", () => {
         // Convert image URLs in the content to <img> tags
         const contentWithImages = convertMediaUrlsToElements(event.content);
 
+        // Initial rendering with placeholder data
         replyItem.innerHTML = `
-    <div class="timeline-header">
-    <img src="${authorAvatar}" alt="${authorName}'s avatar" class="avatar">
-    <span class="author" data-pubkey="${authorHex}">${authorName}</span>
-    <span class="timestamp">${timestamp}</span>
-    </div>
-    <p>${contentWithImages}</p>
-    <span class="reply-icon" data-note-id="${event.id}">↩️</span>
-    `;
+        <div class="timeline-header">
+            <img src="${profile.avatar}" alt="${profile.name}'s avatar" class="avatar">
+            <span class="author" data-pubkey="${authorHex}">${profile.name}</span>
+            <span class="timestamp">${timestamp}</span>
+        </div>
+        <p>${contentWithImages}</p>
+        <span class="reply-icon" data-note-id="${event.id}">↩️</span>
+        `;
 
+        // Add event listener to reply icon
         const replyIcon = replyItem.querySelector('.reply-icon');
         replyIcon.addEventListener('click', () => {
             handleReplyIconClick(replyItem, event.id);
         });
 
         const authorNameElement = replyItem.querySelector('.author');
+        const avatarElement = replyItem.querySelector('.avatar');
+
+        // Add event listeners for profile modal
         authorNameElement.addEventListener('click', () => {
             openProfileModal(authorHex);
         });
-
-        const avatarElement = replyItem.querySelector('.avatar');
         avatarElement.addEventListener('click', () => {
             openProfileModal(authorHex);
         });
@@ -927,7 +1160,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         profileCache[pubkey] = {
             name: profile.name || `${pubkey.slice(0, 6)}...${pubkey.slice(-4)}`,
-            avatar: profile.picture || generatePixelArtAvatar(pubkey), 
+            avatar: profile.picture || generatePixelArtAvatar(pubkey),
             banner: profile.banner || './images/anon-banner.png',
             nip05: profile.nip05 || '',
             about: profile.about || '',
@@ -1005,8 +1238,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function openProfileModal(pubkey) {
+        if (!pubkey) {
+            console.error('pubkey is undefined when opening profile modal.');
+            return;
+        }
+
         const profile = getProfile(pubkey);
-    
+
+        // Set the pubkey as a data attribute on the banner for easy access
+        profileBanner.setAttribute('data-pubkey', pubkey);
+
         // Update the modal with cached data
         profileBanner.src = profile.banner;
         profileAvatar.src = profile.avatar;
@@ -1014,14 +1255,17 @@ document.addEventListener("DOMContentLoaded", () => {
         profileNip05.textContent = profile.nip05 ? `NIP-05: ${profile.nip05}` : '';
         profileAbout.textContent = profile.about ? `About: ${profile.about}` : '';
         profileLnurl.textContent = profile.lnurl ? `⚡ ${profile.lnurl}` : '';
-    
+
+        updateFollowButton(pubkey, modalFollowButton);
+
         // Clear previous notes
         profileFeed.innerHTML = '';
-    
+
         // Fetch the user's notes and populate the profile feed
         fetchUserNotes(pubkey, profileFeed, true);
-    
+
         profileModal.style.display = 'flex';
+        modalFollowButton.style.display = 'block'; // Ensure the follow button is visible
     }
 
     function closeProfileModal() {
@@ -1041,15 +1285,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const userRelays = [...defaultRelays];
         const subscriptionId = generateRandomHex(32);
         const aggregatedEvents = new Map();
-    
+
         userRelays.forEach(relayUrl => {
             const ws = new WebSocket(relayUrl);
             let isResolved = false;
-    
+
             ws.onopen = () => {
                 isResolved = true;
                 console.log(`Fetching user notes from relay: ${relayUrl}`);
-    
+
                 const reqMessage = JSON.stringify([
                     "REQ",
                     subscriptionId,
@@ -1057,7 +1301,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ]);
                 ws.send(reqMessage);
             };
-    
+
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 if (msg[0] === "EVENT") {
@@ -1069,11 +1313,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             };
-    
+
             ws.onerror = (error) => {
                 console.error(`Error fetching user notes from relay ${relayUrl}:`, error);
             };
-    
+
             ws.onclose = () => {
                 console.log(`Closed connection to relay: ${relayUrl}`);
             };
@@ -1083,7 +1327,7 @@ document.addEventListener("DOMContentLoaded", () => {
         function insertSortedEvent(event, feedElement, isProfileModal) {
             const noteItem = createTimelineItem(event);
             const timestamp = event.created_at;
-    
+
             // Find the correct position to insert the new event
             let inserted = false;
             for (let i = 0; i < feedElement.children.length; i++) {
@@ -1094,7 +1338,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     break;
                 }
             }
-    
+
             // If no position is found, append to the end
             if (!inserted) {
                 feedElement.appendChild(noteItem);
@@ -1102,12 +1346,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // Function to subscribe to replies for specific event IDs
     function subscribeToRepliesInitialLoad(relayUrl, eventIds) {
+        const repliesFeed = document.getElementById('repliesFeed');
         const ws = new WebSocket(relayUrl);
         wsRelays[relayUrl] = ws;
 
         ws.onopen = () => {
-            console.log(`Connected to relay for replies: ${relayUrl}`);
+            console.log(`Connected to relay for initial replies load: ${relayUrl}`);
             sendReplySubscription(ws, eventIds);
         };
 
@@ -1115,38 +1361,55 @@ document.addEventListener("DOMContentLoaded", () => {
             const msg = JSON.parse(event.data);
             if (msg[0] === "EVENT") {
                 const nostrEvent = msg[2];
-                if (!seenEventIds.has(nostrEvent.id)) {
-                    seenEventIds.add(nostrEvent.id);
-                    const newReplyItem = createReplyItem(nostrEvent);
 
-                    // Append the new reply to the bottom of the replies feed
+                if (!seenReplyEventIds.has(nostrEvent.id)) {
+                    seenReplyEventIds.add(nostrEvent.id);
+                    console.log('Received new reply event:', nostrEvent);
+
+                    // Create and append the reply item immediately with placeholder data
+                    const newReplyItem = createReplyItem(nostrEvent);
                     repliesFeed.append(newReplyItem);
+
+                    // Hide the spinner when the first reply is received
+                    hideSpinner(repliesFeed);
+
+                    // Fetch the profile if not cached
+                    if (!profileCache[nostrEvent.pubkey]) {
+                        fetchUserProfile(nostrEvent.pubkey, relayUrl, (profile) => {
+                            profileCache[nostrEvent.pubkey] = profile;
+                            // Update the reply item with the fetched profile data
+                            updateReplyItemWithProfile(newReplyItem, nostrEvent.pubkey);
+                        });
+                    }
                 }
             }
         };
 
         ws.onerror = (error) => {
             console.error(`Error with relay ${relayUrl} for replies:`, error);
+            hideSpinner(repliesFeed); // Hide spinner on error
         };
 
         ws.onclose = () => {
-            console.log(`Disconnected from relay: ${relayUrl}`);
-            // Reconnect to maintain the subscription for real-time updates
+            console.log(`WebSocket connection closed for relay: ${relayUrl}`);
             setTimeout(() => {
+                console.log(`Reconnecting to relay for initial replies load: ${relayUrl}`);
                 subscribeToRepliesInitialLoad(relayUrl, eventIds);
             }, 3000);
         };
     }
 
     function subscribeToRepliesUpdate(relayUrl, eventIds) {
+        const repliesFeed = document.getElementById('repliesFeed');
+
         if (wsRelays[relayUrl]) {
             console.log(`Already subscribed to ${relayUrl} for replies`);
 
-            // Ensure the WebSocket is open before sending the request
             if (wsRelays[relayUrl].readyState === WebSocket.OPEN) {
+                console.log(`WebSocket is open for relay: ${relayUrl}, sending subscription request.`);
                 sendReplySubscription(wsRelays[relayUrl], eventIds);
             } else if (wsRelays[relayUrl].readyState === WebSocket.CONNECTING) {
-                // If the WebSocket is still connecting, wait until it's open
+                console.log(`WebSocket is connecting for relay: ${relayUrl}, adding event listener for open.`);
                 wsRelays[relayUrl].addEventListener('open', () => {
                     sendReplySubscription(wsRelays[relayUrl], eventIds);
                 }, { once: true });
@@ -1154,13 +1417,13 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        console.log(`WebSocket not connected to ${relayUrl}. Connecting...`);
+        console.log(`WebSocket not connected to ${relayUrl}. Establishing new connection...`);
 
         const ws = new WebSocket(relayUrl);
         wsRelays[relayUrl] = ws;
 
         ws.onopen = () => {
-            console.log(`Connected to relay for replies: ${relayUrl}`);
+            console.log(`Connected to relay for reply updates: ${relayUrl}`);
             sendReplySubscription(ws, eventIds);
         };
 
@@ -1168,31 +1431,120 @@ document.addEventListener("DOMContentLoaded", () => {
             const msg = JSON.parse(event.data);
             if (msg[0] === "EVENT") {
                 const nostrEvent = msg[2];
-                if (!seenEventIds.has(nostrEvent.id)) {
-                    seenEventIds.add(nostrEvent.id);
-                    const newReplyItem = createReplyItem(nostrEvent);
 
-                    // Append the new reply to the bottom of the replies feed
+                if (!seenReplyEventIds.has(nostrEvent.id)) {
+                    seenReplyEventIds.add(nostrEvent.id);
+                    console.log('Received new reply event:', nostrEvent);
+
+                    // Create and append the reply item immediately with placeholder data
+                    const newReplyItem = createReplyItem(nostrEvent);
                     repliesFeed.append(newReplyItem);
+
+                    // Hide the spinner when the first reply is received
+                    hideSpinner(repliesFeed);
+
+                    // Fetch the profile if not cached
+                    if (!profileCache[nostrEvent.pubkey]) {
+                        fetchUserProfile(nostrEvent.pubkey, relayUrl, (profile) => {
+                            profileCache[nostrEvent.pubkey] = profile;
+                            // Update the reply item with the fetched profile data
+                            updateReplyItemWithProfile(newReplyItem, nostrEvent.pubkey);
+                        });
+                    }
                 }
             }
         };
 
         ws.onerror = (error) => {
             console.error(`Error with relay ${relayUrl} for replies:`, error);
+            hideSpinner(repliesFeed); // Hide spinner on error
         };
 
         ws.onclose = () => {
-            console.log(`Disconnected from relay: ${relayUrl}`);
-            // Reconnect to maintain the subscription for real-time updates
+            console.log(`WebSocket connection closed for relay: ${relayUrl}`);
             setTimeout(() => {
+                console.log(`Reconnecting to relay for reply updates: ${relayUrl}`);
                 subscribeToRepliesUpdate(relayUrl, eventIds);
             }, 3000);
         };
     }
 
+    // Function to fetch user profile (kind 0) and update the cache
+    function fetchUserProfile(pubkey, relayUrl, callback) {
+        // If the profile is already in cache, use it
+        if (profileCache[pubkey]) {
+            callback(profileCache[pubkey]);
+            return;
+        }
+
+        // If a fetch for this pubkey is already in progress, queue the callback
+        if (profileFetchQueue[pubkey]) {
+            profileFetchQueue[pubkey].push(callback);
+            return;
+        }
+
+        // Otherwise, start a new fetch and create a queue for this pubkey
+        profileFetchQueue[pubkey] = [callback];
+
+        const ws = new WebSocket(relayUrl);
+
+        ws.onopen = () => {
+            console.log(`Fetching profile for pubkey: ${pubkey} from relay: ${relayUrl}`);
+            const subscriptionId = generateRandomHex(32);
+            const reqMessage = JSON.stringify([
+                "REQ",
+                subscriptionId,
+                { kinds: [0], authors: [pubkey] }
+            ]);
+            ws.send(reqMessage);
+        };
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg[0] === "EVENT") {
+                const profileEvent = msg[2];
+                if (profileEvent.kind === 0) {
+                    // Cache the profile data
+                    cacheProfile(profileEvent);
+
+                    // Resolve all queued callbacks with the fetched profile data
+                    const profile = getProfile(profileEvent.pubkey);
+                    profileFetchQueue[pubkey].forEach(cb => cb(profile));
+                    delete profileFetchQueue[pubkey];
+
+                    ws.close();
+                }
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error(`Error fetching profile from relay ${relayUrl}:`, error);
+            ws.close();
+        };
+
+        ws.onclose = () => {
+            console.log(`Closed connection to relay after fetching profile: ${relayUrl}`);
+        };
+    }
+
+    function updateReplyItemWithProfile(replyItem, pubkey) {
+        const profile = getProfile(pubkey);
+
+        // Update the author's name and avatar in the reply item
+        const authorNameElement = replyItem.querySelector('.author');
+        const avatarElement = replyItem.querySelector('.avatar');
+
+        if (authorNameElement) {
+            authorNameElement.textContent = profile.name;
+        }
+        if (avatarElement) {
+            avatarElement.src = profile.avatar;
+        }
+    }
+
+    // Function to subscribe to replies for specific event IDs
     function sendReplySubscription(ws, eventIds) {
-        const subscriptionId = generateRandomHex(32);
+        const subscriptionId = generateRandomHex(32); // Generate a new subscription ID
         const reqMessage = JSON.stringify([
             "REQ",
             subscriptionId,
@@ -1205,22 +1557,93 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ws.send(reqMessage);
 
-        console.log(`Updated subscription to relay for replies with message: ${reqMessage}`);
+        console.log(`Sent new REQ message on existing WebSocket: ${reqMessage}`);
     }
 
+    // Function to fetch the global timeline
     function fetchTimeline() {
+        const globalFeed = document.getElementById('globalFeed');
+        globalFeed.innerHTML = ''; // Clear the existing global timeline
+        showSpinner(globalFeed); // Show spinner for global timeline
+    
         for (const relayUrl of defaultRelays) {
-            subscribeToRelay(relayUrl);
+            subscribeToRelayForGlobalFeed(relayUrl);
         }
     }
 
+    function subscribeToRelayForGlobalFeed(relayUrl) {
+        const ws = new WebSocket(relayUrl);
+        wsRelays[relayUrl] = ws;
+
+        ws.onopen = () => {
+            console.log(`Connected to relay: ${relayUrl}`);
+
+            // Send a REQ message to subscribe to text notes (kind 1)
+            const subscriptionId = generateRandomHex(32);
+            const reqMessage = JSON.stringify([
+                "REQ",
+                subscriptionId,
+                { kinds: [1], limit: 100 } // Add the limit filter here
+            ]);
+            ws.send(reqMessage);
+            console.log(`Subscribed to relay ${relayUrl} with message: ${reqMessage}`);
+
+            // Subscribe to kind 0 events to get display names and avatars
+            const profileReqMessage = JSON.stringify([
+                "REQ",
+                generateRandomHex(32),
+                { kinds: [0] }
+            ]);
+            ws.send(profileReqMessage);
+            console.log(`Subscribed to relay ${relayUrl} for user profiles with message: ${profileReqMessage}`);
+        };
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg[0] === "EVENT") {
+                const nostrEvent = msg[2];
+                if (nostrEvent.kind === 0) {
+                    // Cache the profile data as it comes in
+                    cacheProfile(nostrEvent);
+
+                    // Update any existing timeline items with the new profile data
+                    updateTimelineItemsWithProfileData(nostrEvent.pubkey);
+                } else if (nostrEvent.kind === 1 && !seenEventIds.has(nostrEvent.id)) {
+                    seenEventIds.add(nostrEvent.id);
+                    const newTimelineItem = createTimelineItem(nostrEvent);
+                    const globalFeed = document.getElementById('globalFeed');
+                    globalFeed.prepend(newTimelineItem);
+
+                    hideSpinner(globalFeed); // Hide spinner after the first message
+                }
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error(`Error with relay ${relayUrl}:`, error);
+            const globalFeed = document.getElementById('globalFeed');
+            hideSpinner(globalFeed); // Hide spinner on error
+        };
+
+        ws.onclose = () => {
+            console.log(`Disconnected from relay: ${relayUrl}`);
+            delete wsRelays[relayUrl];
+        };
+    }
+
+    // Function to fetch replies for specific saved event IDs
     function fetchReplies() {
+        const repliesFeed = document.getElementById('repliesFeed');
+        repliesFeed.innerHTML = ''; // Clear the existing replies feed
+        showSpinner(repliesFeed); // Show spinner for replies feed
+    
         const eventIds = getSavedEventIds();
         if (eventIds.length === 0) {
             console.log('No event IDs found to fetch replies for.');
+            hideSpinner(repliesFeed); // Hide spinner if no event IDs
             return;
         }
-
+    
         for (const relayUrl of defaultRelays) {
             subscribeToRepliesInitialLoad(relayUrl, eventIds);
         }
@@ -1242,18 +1665,60 @@ document.addEventListener("DOMContentLoaded", () => {
     function renewReplySubscriptions() {
         const eventIds = getSavedEventIds();
         if (eventIds.length === 0) return;
-
-        // Close existing connections to relays and reopen them
+    
+        console.log('Renewing reply subscriptions for event IDs:', eventIds);
+    
         for (const relayUrl of defaultRelays) {
             if (wsRelays[relayUrl]) {
-                wsRelays[relayUrl].close();
+                // If the WebSocket is in the OPEN state, send the subscription message immediately
+                if (wsRelays[relayUrl].readyState === WebSocket.OPEN) {
+                    console.log(`WebSocket is open for relay: ${relayUrl}, sending subscription request.`);
+                    sendReplySubscription(wsRelays[relayUrl], eventIds);
+                } 
+                // If the WebSocket is still connecting, add a listener to send the subscription once it opens
+                else if (wsRelays[relayUrl].readyState === WebSocket.CONNECTING) {
+                    console.log(`WebSocket is connecting for relay: ${relayUrl}, adding event listener for open.`);
+                    wsRelays[relayUrl].addEventListener('open', () => {
+                        sendReplySubscription(wsRelays[relayUrl], eventIds);
+                    }, { once: true });
+                }
+            } else {
+                // Establish a new connection if one doesn't exist
+                console.log(`WebSocket not connected to ${relayUrl}. Establishing new connection...`);
+                subscribeToRepliesUpdate(relayUrl, eventIds);
             }
-            subscribeToRepliesUpdate(relayUrl, eventIds);
+        }
+    }
+
+    function showSpinner(feedElement) {
+        // Check if the feedElement already has a spinner
+        let spinner = feedElement.querySelector('.spinner');
+        if (!spinner) {
+            // Create a new spinner if it doesn't exist
+            spinner = document.createElement('div');
+            spinner.className = 'spinner';
+            spinner.style.position = 'absolute'; // Ensure spinner is positioned absolutely
+            spinner.style.marginTop = '50%';
+            spinner.style.top = '50%';
+            spinner.style.left = '50%';
+            spinner.style.transform = 'translate(-50%, -50%)';
+            spinner.style.zIndex = '1000'; // Ensure it overlays other content
+            feedElement.style.position = 'relative'; // Set the parent to relative if not already
+            feedElement.appendChild(spinner); // Append to feed element
+        }
+        spinner.style.display = 'block';
+    }
+    
+    function hideSpinner(feedElement) {
+        const spinner = feedElement.querySelector('.spinner');
+        if (spinner) {
+            spinner.style.display = 'none';
         }
     }
 
     // Fetch the timeline and replies on page load
     fetchTimeline();
+    fetchFollowingTimeline();
     fetchReplies();
 });
 
