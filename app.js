@@ -168,7 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (following.length === 0) {
             // Create and insert the "not following anyone" message directly in the following timeline
             const noFollowingMessage = document.createElement('div');
-            noFollowingMessage.className = 'note warning';
+            noFollowingMessage.className = 'no-following-message';
             noFollowingMessage.textContent = 'You are not following anyone yet.';
             followingFeed.appendChild(noFollowingMessage);
             

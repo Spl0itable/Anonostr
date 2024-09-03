@@ -684,3 +684,11 @@ footer button[data-npub]:active {
 .toggle-inactive:hover {
     text-decoration: underline;
 }
+
+.no-following-message {
+    text-align: center;
+    padding: 10px;
+    border-radius: 4px;
+    background-color: #fff3cd;
+    color: #856404;
+}
