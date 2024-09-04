@@ -1,3 +1,12 @@
+@font-face {
+    font-family: 'DepartureMono-Regular';
+    src: url('./fonts/DepartureMono-Regular.woff2') format('woff2'),
+         url('./fonts/DepartureMono-Regular.woff') format('woff'),
+         url('./fonts/DepartureMono-Regular.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+}
+
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -52,6 +61,7 @@ body {
 }
 
 h1 {
+    font-family: 'DepartureMono-Regular', Arial, sans-serif;
     flex: 1;
     text-align: center;
     margin: 0;
@@ -141,6 +151,10 @@ h1 {
         resize: vertical;
         width: 100%;
     }
+}
+
+footer p {
+    font-family: 'DepartureMono-Regular', Arial, sans-serif;
 }
 
 label {
@@ -631,7 +645,7 @@ footer button[data-npub]:active {
     color: #fff;
     border: none;
     border-radius: 4px;
-    padding: 5px 10px; 
+    padding: 5px 10px;
     cursor: pointer;
     font-size: 14px;
     display: none;
