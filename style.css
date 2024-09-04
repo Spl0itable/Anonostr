@@ -192,7 +192,7 @@ button:disabled {
 .spinner {
     border: 2px solid #f3f3f3;
     border-radius: 50%;
-    border-top: 2px solid #007bff;
+    border-top: 2px solid #7f00ff;
     width: 14px;
     height: 14px;
     animation: spin 1s linear infinite;
@@ -237,7 +237,7 @@ button:disabled {
 }
 
 .note a {
-    color: #007bff;
+    color: #7f00ff;
     text-decoration: none;
 }
 
@@ -331,7 +331,7 @@ button:disabled {
 
 footer a,
 footer button[data-npub] {
-    color: #007bff;
+    color: #7f00ff;
     text-decoration: none;
     border: none;
     background: none;
@@ -407,7 +407,7 @@ footer button[data-npub]:active {
     bottom: 10px;
     left: 10px;
     cursor: pointer;
-    color: #007bff;
+    color: #7f00ff;
     font-size: 18px;
     transition: color 0.3s ease;
 }
@@ -561,7 +561,7 @@ footer button[data-npub]:active {
 .send-reply-button .spinner {
     border: 2px solid #f3f3f3;
     border-radius: 50%;
-    border-top: 2px solid #007bff;
+    border-top: 2px solid #7f00ff;
     width: 14px;
     height: 14px;
     animation: spin 1s linear infinite;
@@ -697,7 +697,7 @@ footer button[data-npub]:active {
 
 .toggle-active:hover,
 .toggle-inactive:hover {
-    text-decoration: underline;
+    text-decoration: none;
 }
 
 .no-following-message {
