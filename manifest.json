@@ -5,7 +5,7 @@
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
-    "theme_color": "#7f00ff",
+    "theme_color": "#827cd1",
     "icons": [
       {
         "src": "./images/anonostr-icon.png",

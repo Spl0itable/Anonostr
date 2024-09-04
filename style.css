@@ -237,7 +237,7 @@ button:disabled {
 }
 
 .note a {
-    color: #7f00ff;
+    color: #007bff;
     text-decoration: none;
 }
 
@@ -331,7 +331,7 @@ button:disabled {
 
 footer a,
 footer button[data-npub] {
-    color: #7f00ff;
+    color: #007bff;
     text-decoration: none;
     border: none;
     background: none;
@@ -407,7 +407,7 @@ footer button[data-npub]:active {
     bottom: 10px;
     left: 10px;
     cursor: pointer;
-    color: #7f00ff;
+    color: #007bff;
     font-size: 18px;
     transition: color 0.3s ease;
 }
