@@ -1,3 +1,7 @@
+## v1.5.9 - 2024-01-05
+
+- Tweaked: enhanced rate limiting to prevent abuse
+
 ## v1.5.8 - 2024-01-03
 
 - New: following users
