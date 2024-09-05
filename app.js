@@ -1911,8 +1911,6 @@ document.addEventListener("DOMContentLoaded", () => {
         // List of existing avatar generators
         const avatarGenerators = [
             `https://robohash.org/${pubKey}.png`, // RoboHash
-            `https://avatars.dicebear.com/api/avataaars/${pubKey}.svg`, // DiceBear Avataaars (existing)
-            `https://avatars.dicebear.com/api/jdenticon/${pubKey}.svg`, // DiceBear Jdenticon (existing)
             `https://ui-avatars.com/api/?name=${encodeURIComponent(pubKey.slice(0, 6))}&background=random` // UI Avatars
         ];
 
@@ -1920,8 +1918,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const diceBearStyles = [
             'adventurer',
             'adventurer-neutral',
-            'avataaars',
-            'avataaars-neutral',
             'big-ears',
             'big-ears-neutral',
             'big-smile',
