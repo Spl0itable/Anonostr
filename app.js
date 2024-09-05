@@ -84,13 +84,13 @@ document.addEventListener("DOMContentLoaded", () => {
             globalToggle.className = 'toggle-inactive';
             followingFeed.style.display = 'block';
             globalFeed.style.display = 'none';
-            fetchFollowingTimeline();
+            // No need to fetch the timeline again, just show the existing one
         } else if (timeline === 'global') {
             followingToggle.className = 'toggle-inactive';
             globalToggle.className = 'toggle-active';
             followingFeed.style.display = 'none';
             globalFeed.style.display = 'block';
-            fetchTimeline();
+            fetchTimeline(); // Continue fetching events for Global
         }
     }
 
@@ -178,56 +178,60 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         for (const relayUrl of defaultRelays) {
-            const ws = new WebSocket(relayUrl);
+            if (!wsRelays[relayUrl]) {
+                const ws = new WebSocket(relayUrl);
+                wsRelays[relayUrl] = ws;
 
-            ws.onopen = () => {
-                const subscriptionId = generateRandomHex(32);
-                const reqMessage = JSON.stringify([
-                    "REQ",
-                    subscriptionId,
-                    { kinds: [1], authors: following, limit: 100 }
-                ]);
-                ws.send(reqMessage);
+                ws.onopen = () => {
+                    const subscriptionId = generateRandomHex(32);
+                    const reqMessage = JSON.stringify([
+                        "REQ",
+                        subscriptionId,
+                        { kinds: [1], authors: following, limit: 100 }
+                    ]);
+                    ws.send(reqMessage);
 
-                // Subscribe to kind 0 events to get display names and avatars
-                const profileReqMessage = JSON.stringify([
-                    "REQ",
-                    generateRandomHex(32),
-                    { kinds: [0], authors: following }
-                ]);
-                ws.send(profileReqMessage);
-            };
+                    // Subscribe to kind 0 events to get display names and avatars
+                    const profileReqMessage = JSON.stringify([
+                        "REQ",
+                        generateRandomHex(32),
+                        { kinds: [0], authors: following }
+                    ]);
+                    ws.send(profileReqMessage);
+                };
 
-            ws.onmessage = (event) => {
-                const msg = JSON.parse(event.data);
-                if (msg[0] === "EVENT") {
-                    const nostrEvent = msg[2];
+                ws.onmessage = (event) => {
+                    const msg = JSON.parse(event.data);
+                    if (msg[0] === "EVENT") {
+                        const nostrEvent = msg[2];
 
-                    if (nostrEvent.kind === 0) {
-                        // Cache the profile data
-                        cacheProfile(nostrEvent);
+                        if (nostrEvent.kind === 0) {
+                            // Cache the profile data
+                            cacheProfile(nostrEvent);
 
-                        // Update any existing timeline items with the new profile data
-                        updateTimelineItemsWithProfileData(nostrEvent.pubkey);
-                    } else if (nostrEvent.kind === 1 && !seenEventIds.has(nostrEvent.id)) {
-                        seenEventIds.add(nostrEvent.id);
+                            // Update any existing timeline items with the new profile data
+                            updateTimelineItemsWithProfileData(nostrEvent.pubkey);
+                        } else if (nostrEvent.kind === 1 && !seenEventIds.has(nostrEvent.id)) {
+                            seenEventIds.add(nostrEvent.id);
 
-                        // Immediately render the timeline item
-                        const newTimelineItem = createTimelineItem(nostrEvent);
-                        followingFeed.append(newTimelineItem);
-                        hideSpinner(followingFeed); // Hide spinner on first message
+                            // Immediately render the timeline item
+                            const newTimelineItem = createTimelineItem(nostrEvent);
+                            followingFeed.append(newTimelineItem);
+                            hideSpinner(followingFeed); // Hide spinner on first message
+                        }
                     }
-                }
-            };
+                };
 
-            ws.onerror = (error) => {
-                console.error(`Error fetching following timeline from relay ${relayUrl}:`, error);
-                hideSpinner(followingFeed); // Hide spinner on error
-            };
+                ws.onerror = (error) => {
+                    console.error(`Error fetching following timeline from relay ${relayUrl}:`, error);
+                    hideSpinner(followingFeed); // Hide spinner on error
+                };
 
-            ws.onclose = () => {
-                console.log(`Closed connection to relay: ${relayUrl}`);
-            };
+                ws.onclose = () => {
+                    console.log(`Closed connection to relay: ${relayUrl}`);
+                    delete wsRelays[relayUrl];
+                };
+            }
         }
     }
 
@@ -534,7 +538,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // Proceed with submission logic...
+            // Determine the selected relays
+            let selectedRelays;
+            if (torRelaysCheckbox.checked) {
+                selectedRelays = torRelays;
+            } else {
+                selectedRelays = defaultRelays;
+            }
+
+            // Generate and send kind 0 event (anon profile)
+            const kind0Event = createAnonKind0Event(pubKey, sk);
+            let kind0Success = false;
+
+            if (relayHopCheckbox.checked) {
+                kind0Success = await sendNoteToRelayWithHop(kind0Event, selectedRelays);
+            } else {
+                kind0Success = await sendNoteToRelayDirect(kind0Event, selectedRelays);
+            }
+
+            // Proceed only if kind 0 event was sent successfully
+            if (!kind0Success) {
+                showNote('Failed to send profile data. Please try again.', 'error', submitButton);
+                resetFormState();
+                return;
+            }
+
             const tags = [];
             const nip19Regex = /([a-z]{1,}[1][qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,})/gi;
             const hashtagRegex = /#\w+/g;
@@ -625,14 +653,6 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log('Signed Event:', signedEvent);
 
             try {
-                let selectedRelays;
-
-                if (torRelaysCheckbox.checked) {
-                    selectedRelays = torRelays;
-                } else {
-                    selectedRelays = defaultRelays;
-                }
-
                 let relaySuccess = false;
 
                 if (relayHopCheckbox.checked) {
@@ -723,16 +743,73 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function sendNoteToRelay(relayUrl, event) {
-        try {
-            const relay = new NostrTools.Relay(relayUrl);
-            await relay.connect();
-            await relay.publish(event);
-            relay.close();
-            return { success: true, relayUrl };
-        } catch (error) {
-            console.error(`Failed to connect or publish to relay: ${relayUrl}`, error);
-            return { success: false, relayUrl };
+        if (!wsRelays[relayUrl] || wsRelays[relayUrl].readyState !== WebSocket.OPEN) {
+            console.log(`Establishing new connection to relay: ${relayUrl}`);
+            wsRelays[relayUrl] = new WebSocket(relayUrl);
+
+            wsRelays[relayUrl].onopen = () => {
+                console.log(`Connected to relay: ${relayUrl}`);
+                wsRelays[relayUrl].send(JSON.stringify(["EVENT", event]));
+                console.log(`Sent event to relay ${relayUrl}:`, event);
+            };
+
+            wsRelays[relayUrl].onerror = (error) => {
+                console.error(`Failed to send event to relay ${relayUrl}:`, error);
+            };
+
+            wsRelays[relayUrl].onclose = () => {
+                console.log(`Disconnected from relay: ${relayUrl}`);
+                delete wsRelays[relayUrl]; // Cleanup on close
+            };
+        } else {
+            console.log(`Reusing open connection to relay: ${relayUrl}`);
+            wsRelays[relayUrl].send(JSON.stringify(["EVENT", event]));
+            console.log(`Sent event to relay ${relayUrl}:`, event);
         }
+
+        return new Promise((resolve) => {
+            wsRelays[relayUrl].onmessage = (message) => {
+                const response = JSON.parse(message.data);
+                if (response[0] === "OK" && response[1] === event.id) {
+                    console.log(`Relay ${relayUrl} acknowledged event: ${event.id}`);
+                    resolve({ success: true, relayUrl });
+                } else {
+                    resolve({ success: false, relayUrl });
+                }
+            };
+        });
+    }
+
+    async function sendNoteToRelayWithHop(event, relays) {
+        let relaySuccess = false;
+
+        let availableRelays = [...relays];
+
+        while (!relaySuccess && availableRelays.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableRelays.length);
+            const randomRelay = availableRelays[randomIndex];
+
+            const relayResult = await sendNoteToRelay(randomRelay, event);
+
+            if (relayResult.success) {
+                relaySuccess = true;
+            } else {
+                availableRelays.splice(randomIndex, 1);
+                console.warn(`Relay hop failed for relay: ${randomRelay}. Trying another relay...`);
+            }
+        }
+
+        return relaySuccess;
+    }
+
+    async function sendNoteToRelayDirect(event, relays) {
+        const relayResults = await Promise.all(
+            relays.map(relayUrl => sendNoteToRelay(relayUrl, event))
+        );
+
+        const successfulRelays = relayResults.filter(result => result.success).length;
+
+        return successfulRelays > 0;
     }
 
     // Helper function to convert image and video URLs to <img> and <video> tags
@@ -994,8 +1071,38 @@ document.addEventListener("DOMContentLoaded", () => {
             spinner.style.display = 'inline-block';
             sendReplyButton.disabled = true;
 
+            // Generate a new key pair for each reply
             const sk = NostrTools.generateSecretKey();
             const pubKey = NostrTools.getPublicKey(sk);
+
+            // Determine the selected relays
+            const torRelaysChecked = replyForm.querySelector('.tor-relays-checkbox').checked;
+            let selectedRelays;
+            if (torRelaysChecked) {
+                selectedRelays = torRelays;
+            } else {
+                selectedRelays = defaultRelays;
+            }
+
+            // Generate and send kind 0 event (anon profile)
+            const kind0Event = createAnonKind0Event(pubKey, sk);
+            let kind0Success = false;
+
+            const replyChainChecked = replyForm.querySelector('.reply-chain-checkbox').checked;
+            const relayHopChecked = replyForm.querySelector('.relay-hop-checkbox').checked;
+
+            if (relayHopChecked) {
+                kind0Success = await sendNoteToRelayWithHop(kind0Event, selectedRelays);
+            } else {
+                kind0Success = await sendNoteToRelayDirect(kind0Event, selectedRelays);
+            }
+
+            // Proceed only if kind 0 event was sent successfully
+            if (!kind0Success) {
+                showReplyNote('Failed to send profile data. Please try again.', 'error', replyStatusNote);
+                resetReplyFormState(spinner, sendReplyButton);
+                return;
+            }
 
             // Generate a hash of the reply content
             const contentHash = hashString(content);
@@ -1016,10 +1123,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const tags = [["e", parentId, "", "reply"]];
             let targetKeys = [parentId]; // Start with the parent event ID for rate limiting
-
-            const replyChainChecked = replyForm.querySelector('.reply-chain-checkbox').checked;
-            const relayHopChecked = replyForm.querySelector('.relay-hop-checkbox').checked;
-            const torRelaysChecked = replyForm.querySelector('.tor-relays-checkbox').checked;
 
             if (replyChainChecked && lastEventId) {
                 tags.push(["e", lastEventId, "", "reply"]);
@@ -1084,14 +1187,6 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log('Signed Reply Event:', signedEvent);
 
             try {
-                let selectedRelays;
-
-                if (torRelaysChecked) {
-                    selectedRelays = torRelays;
-                } else {
-                    selectedRelays = defaultRelays;
-                }
-
                 let relaySuccess = false;
 
                 if (relayHopChecked) {
@@ -1162,7 +1257,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Function to reset the reply form state
     function resetReplyFormState(spinner, sendReplyButton) {
         spinner.style.display = 'none';
         sendReplyButton.disabled = false;
@@ -1174,16 +1268,15 @@ document.addEventListener("DOMContentLoaded", () => {
         replyStatusNote.style.display = note ? 'block' : 'none';
     }
 
-    function subscribeToRelay(relayUrl) {
-        if (wsRelays[relayUrl]) {
+    function subscribeToRelay(relayUrl, following) {
+        if (wsRelays[relayUrl] && wsRelays[relayUrl].readyState === WebSocket.OPEN) {
             console.log(`Already subscribed to ${relayUrl}`);
             return;
         }
 
-        const ws = new WebSocket(relayUrl);
-        wsRelays[relayUrl] = ws;
+        wsRelays[relayUrl] = new WebSocket(relayUrl);
 
-        ws.onopen = () => {
+        wsRelays[relayUrl].onopen = () => {
             console.log(`Connected to relay: ${relayUrl}`);
 
             // Send a REQ message to subscribe to text notes (kind 1) with a limit of 100 events
@@ -1191,22 +1284,20 @@ document.addEventListener("DOMContentLoaded", () => {
             const reqMessage = JSON.stringify([
                 "REQ",
                 subscriptionId,
-                { kinds: [1], limit: 100 } // Add the limit filter here
+                { kinds: [1], authors: following, limit: 100 } // Add the limit filter here
             ]);
-            ws.send(reqMessage);
-            console.log(`Subscribed to relay ${relayUrl} with message: ${reqMessage}`);
+            wsRelays[relayUrl].send(reqMessage);
 
             // Subscribe to kind 0 events to get display names and avatars
             const profileReqMessage = JSON.stringify([
                 "REQ",
                 generateRandomHex(32),
-                { kinds: [0] }
+                { kinds: [0], authors: following }
             ]);
-            ws.send(profileReqMessage);
-            console.log(`Subscribed to relay ${relayUrl} for user profiles with message: ${profileReqMessage}`);
+            wsRelays[relayUrl].send(profileReqMessage);
         };
 
-        ws.onmessage = (event) => {
+        wsRelays[relayUrl].onmessage = (event) => {
             const msg = JSON.parse(event.data);
             if (msg[0] === "EVENT") {
                 const nostrEvent = msg[2];
@@ -1216,19 +1307,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else if (!seenEventIds.has(nostrEvent.id)) {
                     seenEventIds.add(nostrEvent.id);
                     const newTimelineItem = createTimelineItem(nostrEvent);
-
                     timelineFeed.prepend(newTimelineItem);
                 }
             }
         };
 
-        ws.onerror = (error) => {
+        wsRelays[relayUrl].onerror = (error) => {
             console.error(`Error with relay ${relayUrl}:`, error);
         };
 
-        ws.onclose = () => {
+        wsRelays[relayUrl].onclose = () => {
             console.log(`Disconnected from relay: ${relayUrl}`);
-            delete wsRelays[relayUrl];
+            delete wsRelays[relayUrl]; // Cleanup on close
         };
     }
 
@@ -1649,6 +1739,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // Fetch the initial timeline based on the current view
+    fetchFollowingTimeline(); // Always fetch the "Following" timeline and keep it open
+
+    if (currentTimeline === 'global') {
+        fetchTimeline();
+    }
+
     function subscribeToRelayForGlobalFeed(relayUrl) {
         const ws = new WebSocket(relayUrl);
         wsRelays[relayUrl] = ws;
@@ -1795,6 +1892,121 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem(targetRateLimitStorageKey, JSON.stringify(targetSubmissions));
 
         return true; // Rate limit not exceeded
+    }
+
+    function createAnonKind0Event(pubKey, sk) {
+        const anonProfile = generateAnonProfile(pubKey);
+        const kind0Event = {
+            kind: 0,
+            pubkey: pubKey,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [],
+            content: JSON.stringify(anonProfile)
+        };
+
+        return NostrTools.finalizeEvent(kind0Event, sk);
+    }
+
+    function generateAnonProfile(pubKey) {
+        // List of existing avatar generators
+        const avatarGenerators = [
+            `https://robohash.org/${pubKey}.png`, // RoboHash
+            `https://avatars.dicebear.com/api/avataaars/${pubKey}.svg`, // DiceBear Avataaars (existing)
+            `https://avatars.dicebear.com/api/jdenticon/${pubKey}.svg`, // DiceBear Jdenticon (existing)
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(pubKey.slice(0, 6))}&background=random` // UI Avatars
+        ];
+
+        // Add all available DiceBear avatar styles for PNG format
+        const diceBearStyles = [
+            'adventurer',
+            'adventurer-neutral',
+            'avataaars',
+            'avataaars-neutral',
+            'big-ears',
+            'big-ears-neutral',
+            'big-smile',
+            'bottts',
+            'bottts-neutral',
+            'croodles',
+            'croodles-neutral',
+            'fun-emoji',
+            'icons',
+            'identicon',
+            'lorelei',
+            'lorelei-neutral',
+            'micah',
+            'miniavs',
+            'open-peeps',
+            'personas',
+            'pixel-art',
+            'pixel-art-neutral',
+            'shapes',
+            'thumbs'
+        ];
+
+        // Add DiceBear PNG avatars to the avatarGenerators array
+        diceBearStyles.forEach(style => {
+            avatarGenerators.push(`https://api.dicebear.com/9.x/${style}/png?seed=${pubKey}`);
+        });
+
+        // Randomly select an avatar generator
+        const anonAvatar = avatarGenerators[Math.floor(Math.random() * avatarGenerators.length)];
+
+        // Generate a random word for display name
+        const word = generateRandomWord();
+        const anonName = `${capitalizeFirstLetter(word)}`;
+
+        // Generate a completely random sentence for the about section
+        const anonAbout = generateRandomSentence();
+
+        return {
+            name: anonName,
+            picture: anonAvatar,
+            about: anonAbout
+        };
+    }
+
+    // Helper function to generate a random syllable
+    function generateRandomSyllable() {
+        const consonants = "bcdfghjklmnpqrstvwxyz";
+        const vowels = "aeiou";
+        const randomConsonant = consonants[Math.floor(Math.random() * consonants.length)];
+        const randomVowel = vowels[Math.floor(Math.random() * vowels.length)];
+
+        return randomConsonant + randomVowel;
+    }
+
+    // Helper function to generate a readable random word using syllables
+    function generateRandomWord() {
+        const syllableCount = Math.floor(Math.random() * 2) + 2; // 2 to 3 syllables
+        let word = "";
+        for (let i = 0; i < syllableCount; i++) {
+            word += generateRandomSyllable();
+        }
+        return word;
+    }
+
+    // Helper function to generate a completely random but readable sentence
+    function generateRandomSentence() {
+        const sentenceLength = Math.floor(Math.random() * 5) + 5; // Random sentence length between 5 and 9 words
+        let sentence = "";
+
+        for (let i = 0; i < sentenceLength; i++) {
+            const word = generateRandomWord();
+            sentence += word + " ";
+        }
+
+        // Capitalize the first letter of the sentence and remove the trailing space
+        sentence = sentence.trim();
+        sentence = capitalizeFirstLetter(sentence);
+
+        // Add a period at the end of the sentence
+        return sentence + ".";
+    }
+
+    // Helper function to capitalize the first letter of a word
+    function capitalizeFirstLetter(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
     function showSpinner(feedElement) {

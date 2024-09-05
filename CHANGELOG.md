@@ -1,3 +1,9 @@
+## v1.6.11 - 2024-09-05
+
+- New: generates random display name and avatar for every key pair
+- Tweak: improved websocket connections
+- Fix: following timeline not loading after switching to global
+
 ## v1.5.11 - 2024-09-05
 
 - Hotfix: refined rate limit logic further with deduplication and support for hashtags
