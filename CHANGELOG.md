@@ -1,37 +1,37 @@
-## v1.5.10 - 2024-01-05
+## v1.5.10 - 2024-09-05
 
 - Hotfix: refined rate limit logic
 
-## v1.5.9 - 2024-01-05
+## v1.5.9 - 2024-09-05
 
 - Tweaked: enhanced rate limiting to prevent abuse
 
-## v1.5.8 - 2024-01-03
+## v1.5.8 - 2024-09-03
 
 - New: following users
 
-## v1.4.8 - 2024-01-02
+## v1.4.8 - 2024-09-02
 
 - New: search feature
 
-## v1.3.8 - 2024-01-02
+## v1.3.8 - 2024-09-02
 
 - Hotfix: service worker script support of external requests
 
-## v1.3.7 - 2024-01-02
+## v1.3.7 - 2024-09-02
 
 - Hotfix: service worker script support of external requests
 
-## v1.3.6 - 2024-01-02
+## v1.3.6 - 2024-09-02
 
 - Hotfix: service worker script exclusion of external requests
 
-## v1.3.5 - 2024-01-02
+## v1.3.5 - 2024-09-02
 
 - Tweaked: improved feed loading and added video rendering
 - Tweaked: improved overall codebase
 
-## v1.2.5 - 2024-01-01
+## v1.2.5 - 2024-09-01
 
 - New: support for loading media
 - New: view user profile
