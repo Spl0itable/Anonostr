@@ -489,41 +489,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
-    
+
         try {
             const currentTime = Math.floor(Date.now() / 1000);
             const lastSubmitTime = parseInt(localStorage.getItem(localStorageKey), 10) || 0;
             const timeSinceLastSubmit = currentTime - lastSubmitTime;
-    
+
             if (timeSinceLastSubmit < rateLimitSeconds) {
                 const timeLeft = rateLimitSeconds - timeSinceLastSubmit;
                 showNote(`Please wait ${timeLeft} second(s) before submitting again.`, 'warning', submitButton);
                 return;
             }
-    
+
             // Reset the status note and show the spinner
             showNote('', '', submitButton); // Ensure the note is cleared
             spinner.style.display = 'inline-block';
             submitButton.disabled = true;
-    
+
             // Generate a new key pair on each submit
             const sk = NostrTools.generateSecretKey();
             const pubKey = NostrTools.getPublicKey(sk);
-    
+
             let note = noteInput.value.trim();
             if (!note) {
                 showNote('Please enter a note.', 'error', submitButton);
                 resetFormState();
                 return;
             }
-    
+
             const tags = [];
             const bech32Regex = /@([a-z]{1,}[1][qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,})/g;
-    
+
             let isRootSet = false;
             let firstMatchIsNote = false;
             let targetKey = null;
-    
+
             // Handle mentions and note references
             const matches = note.match(bech32Regex);
             if (matches) {
@@ -531,7 +531,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     try {
                         const decoded = NostrTools.nip19.decode(match.substring(1));
                         const hexKey = decoded.data;
-    
+
                         if (decoded.type === 'note') {
                             if (!isRootSet && note.startsWith(match)) {
                                 rootEventId = hexKey;
@@ -555,44 +555,31 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             }
-    
+
+            // Check if reply chain is enabled and set the target accordingly
             if (replyChainCheckbox.checked && lastEventId) {
                 tags.push(["e", lastEventId, "", "reply"]);
                 if (rootEventId && !isRootSet) {
                     tags.unshift(["e", rootEventId, "", "root"]);
                     isRootSet = true;
+                    targetKey = rootEventId; // Use rootEventId as the target for rate limiting
                 }
             }
-    
+
+            // Apply rate limiting
+            if (!checkAndUpdateRateLimit(targetKey)) {
+                showNote(`You have reached the limit of 10 submissions per hour to this note or pubkey. Please try again later.`, 'warning', submitButton);
+                resetFormState();
+                return;
+            }
+
             const hashtags = note.match(/#\w+/g);
             if (hashtags) {
                 for (const tag of hashtags) {
                     tags.push(["t", tag.substring(1)]);
                 }
             }
-    
-            // Initialize targetSubmissions only if a targetKey is found
-            let targetSubmissions = JSON.parse(localStorage.getItem(targetRateLimitStorageKey)) || {};
-    
-            // If no targetKey is found, skip rate limiting (e.g., for general notes)
-            if (targetKey) {
-                // Check if the current target has any submission history
-                if (!targetSubmissions[targetKey]) {
-                    targetSubmissions[targetKey] = [];
-                }
-    
-                // Filter out submissions that are older than 1 hour
-                const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
-                targetSubmissions[targetKey] = targetSubmissions[targetKey].filter(timestamp => timestamp > oneHourAgo);
-    
-                // Enforce the rate limit of 10 submissions per hour to the same target
-                if (targetSubmissions[targetKey].length >= 10) {
-                    showNote(`You have reached the limit of 10 submissions per hour to this pubkey or note. Please try again later.`, 'warning', submitButton);
-                    resetFormState();
-                    return;
-                }
-            }
-    
+
             const eventTemplate = {
                 kind: 1,
                 pubkey: pubKey,
@@ -600,67 +587,67 @@ document.addEventListener("DOMContentLoaded", () => {
                 tags: tags,
                 content: note
             };
-    
+
             console.log('Event Template:', eventTemplate);
-    
+
             const signedEvent = NostrTools.finalizeEvent(eventTemplate, sk);
             lastEventId = signedEvent.id;
-    
+
             saveEventId(lastEventId);
-    
+
             if (!rootEventId) {
                 rootEventId = lastEventId;
             }
-    
+
             console.log('Signed Event:', signedEvent);
-    
+
             try {
                 let selectedRelays;
-    
+
                 if (torRelaysCheckbox.checked) {
                     selectedRelays = torRelays;
                 } else {
                     selectedRelays = defaultRelays;
                 }
-    
+
                 let relaySuccess = false;
-    
+
                 if (relayHopCheckbox.checked) {
                     let availableRelays = [...selectedRelays];
-    
+
                     while (!relaySuccess && availableRelays.length > 0) {
                         const randomIndex = Math.floor(Math.random() * availableRelays.length);
                         const randomRelay = availableRelays[randomIndex];
-    
+
                         const relayResult = await sendNoteToRelay(randomRelay, signedEvent);
-    
+
                         if (relayResult.success) {
                             relaySuccess = true;
                             const eventId = signedEvent.id;
                             const eventLink = `https://njump.me/${eventId}`;
                             showNote(`Anon note sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', submitButton);
                             noteInput.value = '';
-    
+
                             localStorage.setItem(localStorageKey, currentTime);
-    
+
                             renewReplySubscriptions();
                         } else {
                             availableRelays.splice(randomIndex, 1);
                             console.warn(`Relay hop failed for relay: ${randomRelay}. Trying another relay...`);
                         }
                     }
-    
+
                     if (!relaySuccess) {
                         showNote('Relay hopping failed for all relays. Please try again later.', 'error', submitButton);
                     }
-    
+
                 } else {
                     const relayResults = await Promise.all(
                         selectedRelays.map(relayUrl => sendNoteToRelay(relayUrl, signedEvent))
                     );
-    
+
                     const successfulRelays = relayResults.filter(result => result.success).length;
-    
+
                     if (successfulRelays === 0) {
                         showNote('No relays available. Please try again later.', 'error', submitButton);
                     } else {
@@ -668,19 +655,11 @@ document.addEventListener("DOMContentLoaded", () => {
                         const eventLink = `https://njump.me/${eventId}`;
                         showNote(`Anon note sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', submitButton);
                         noteInput.value = '';
-    
+
                         localStorage.setItem(localStorageKey, currentTime);
-    
+
                         renewReplySubscriptions();
                     }
-                }
-    
-                if (targetKey) {
-                    // Add the current timestamp to the target's submission history
-                    targetSubmissions[targetKey].push(Math.floor(Date.now() / 1000));
-    
-                    // Save the updated submission data back to localStorage
-                    localStorage.setItem(targetRateLimitStorageKey, JSON.stringify(targetSubmissions));
                 }
             } catch (error) {
                 console.error('Failed to send note:', error);
@@ -987,7 +966,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const pubKey = NostrTools.getPublicKey(sk);
 
             const tags = [["e", parentId, "", "reply"]];
-            const targetKey = parentId; // The parent event ID is the target for rate limiting
+            let targetKeys = [parentId]; // Start with the parent event ID for rate limiting
 
             const replyChainChecked = replyForm.querySelector('.reply-chain-checkbox').checked;
             const relayHopChecked = replyForm.querySelector('.relay-hop-checkbox').checked;
@@ -997,28 +976,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 tags.push(["e", lastEventId, "", "reply"]);
                 if (rootEventId && !tags.some(tag => tag[1] === rootEventId)) {
                     tags.unshift(["e", rootEventId, "", "root"]);
+                    targetKeys.push(rootEventId); // Include the root event ID in rate limiting
                 }
             }
 
-            // Get the current target submission data from localStorage
-            let targetSubmissions = JSON.parse(localStorage.getItem(targetRateLimitStorageKey)) || {};
+            // Handle mentions in the reply content
+            const bech32Regex = /@([a-z]{1,}[1][qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,})/g;
+            const matches = content.match(bech32Regex);
 
-            // Check if the current target has any submission history
-            if (!targetSubmissions[targetKey]) {
-                targetSubmissions[targetKey] = [];
+            if (matches) {
+                for (const match of matches) {
+                    try {
+                        const decoded = NostrTools.nip19.decode(match.substring(1));
+                        const hexKey = decoded.data;
+
+                        if (decoded.type === 'note' || decoded.type === 'npub' || decoded.type === 'nprofile') {
+                            tags.push([decoded.type === 'note' ? "e" : "p", hexKey, "", "mention"]);
+                            targetKeys.push(hexKey); // Add the mentioned note or pubkey as a target for rate limiting
+                        }
+                    } catch (error) {
+                        console.error('Error decoding bech32:', error);
+                    }
+                }
             }
 
-            // Filter out submissions that are older than 1 hour
-            const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
-            targetSubmissions[targetKey] = targetSubmissions[targetKey].filter(timestamp => timestamp > oneHourAgo);
-
-            // Enforce the rate limit of 10 submissions per hour to the same target
-            if (targetSubmissions[targetKey].length >= 10) {
-                showReplyNote(`You have reached the limit of 10 replies per hour to this note. Please try again later.`, 'warning', replyStatusNote);
-                resetFormState();
-                spinner.style.display = 'none';
-                sendReplyButton.disabled = false;
-                return;
+            // Apply rate limiting to all target keys
+            for (const targetKey of targetKeys) {
+                if (!checkAndUpdateRateLimit(targetKey)) {
+                    showReplyNote(`You have reached the limit of 10 replies per hour to this note or pubkey. Please try again later.`, 'warning', replyStatusNote);
+                    spinner.style.display = 'none';
+                    sendReplyButton.disabled = false;
+                    return;
+                }
             }
 
             const eventTemplate = {
@@ -1098,12 +1087,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         renewReplySubscriptions();
                     }
                 }
-
-                // Add the current timestamp to the target's submission history
-                targetSubmissions[targetKey].push(Math.floor(Date.now() / 1000));
-
-                // Save the updated submission data back to localStorage
-                localStorage.setItem(targetRateLimitStorageKey, JSON.stringify(targetSubmissions));
             } catch (error) {
                 console.error('Failed to send reply:', error);
                 showReplyNote('Failed to send reply. Please try again.', 'error', replyStatusNote);
@@ -1717,6 +1700,35 @@ document.addEventListener("DOMContentLoaded", () => {
                 subscribeToRepliesUpdate(relayUrl, eventIds);
             }
         }
+    }
+
+    function checkAndUpdateRateLimit(targetKey) {
+        if (!targetKey) return true; // If no target, no rate limiting applies
+
+        // Initialize targetSubmissions only if a targetKey is found
+        let targetSubmissions = JSON.parse(localStorage.getItem(targetRateLimitStorageKey)) || {};
+
+        // Check if the current target has any submission history
+        if (!targetSubmissions[targetKey]) {
+            targetSubmissions[targetKey] = [];
+        }
+
+        // Filter out submissions that are older than 1 hour
+        const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
+        targetSubmissions[targetKey] = targetSubmissions[targetKey].filter(timestamp => timestamp > oneHourAgo);
+
+        // Enforce the rate limit of 10 submissions per hour to the same target
+        if (targetSubmissions[targetKey].length >= 10) {
+            return false; // Rate limit exceeded
+        }
+
+        // Add the current timestamp to the target's submission history
+        targetSubmissions[targetKey].push(Math.floor(Date.now() / 1000));
+
+        // Save the updated submission data back to localStorage
+        localStorage.setItem(targetRateLimitStorageKey, JSON.stringify(targetSubmissions));
+
+        return true; // Rate limit not exceeded
     }
 
     function showSpinner(feedElement) {

@@ -1,3 +1,7 @@
+## v1.5.10 - 2024-01-05
+
+- Hotfix: refined rate limit logic
+
 ## v1.5.9 - 2024-01-05
 
 - Tweaked: enhanced rate limiting to prevent abuse
