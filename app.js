@@ -489,49 +489,49 @@ document.addEventListener("DOMContentLoaded", () => {
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
-
+    
         try {
             const currentTime = Math.floor(Date.now() / 1000);
             const lastSubmitTime = parseInt(localStorage.getItem(localStorageKey), 10) || 0;
             const timeSinceLastSubmit = currentTime - lastSubmitTime;
-
+    
             if (timeSinceLastSubmit < rateLimitSeconds) {
                 const timeLeft = rateLimitSeconds - timeSinceLastSubmit;
                 showNote(`Please wait ${timeLeft} second(s) before submitting again.`, 'warning', submitButton);
                 return;
             }
-
+    
             // Reset the status note and show the spinner
             showNote('', '', submitButton); // Ensure the note is cleared
             spinner.style.display = 'inline-block';
             submitButton.disabled = true;
-
+    
             // Generate a new key pair on each submit
             const sk = NostrTools.generateSecretKey();
             const pubKey = NostrTools.getPublicKey(sk);
-
+    
             let note = noteInput.value.trim();
             if (!note) {
                 showNote('Please enter a note.', 'error', submitButton);
                 resetFormState();
                 return;
             }
-
+    
             const tags = [];
-            const bech32Regex = /@([a-z]{1,}[1][qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,})/g;
-
+            const nip19Regex = /([a-z]{1,}[1][qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,})/gi;
+    
             let isRootSet = false;
             let firstMatchIsNote = false;
-            let targetKey = null;
-
+            let targetKeys = [];
+    
             // Handle mentions and note references
-            const matches = note.match(bech32Regex);
+            const matches = note.match(nip19Regex);
             if (matches) {
                 for (const match of matches) {
                     try {
-                        const decoded = NostrTools.nip19.decode(match.substring(1));
+                        const decoded = NostrTools.nip19.decode(match);
                         const hexKey = decoded.data;
-
+    
                         if (decoded.type === 'note') {
                             if (!isRootSet && note.startsWith(match)) {
                                 rootEventId = hexKey;
@@ -541,45 +541,47 @@ document.addEventListener("DOMContentLoaded", () => {
                                 firstMatchIsNote = true;
                             } else {
                                 tags.push(["e", hexKey, "", "mention"]);
-                                note = note.replace(match, `nostr:${match.substring(1)}`);
+                                note = note.replace(match, `nostr:${match}`);
                             }
-                            // Set the event ID as the target key for rate limiting
-                            targetKey = hexKey;
+                            // Add the event ID to the list of target keys for rate limiting
+                            targetKeys.push(hexKey);
                         } else if (decoded.type === 'npub' || decoded.type === 'nprofile') {
                             tags.push(["p", hexKey, "", "mention"]);
-                            // Set the pubkey as the target key for rate limiting
-                            targetKey = hexKey;
+                            // Add the pubkey to the list of target keys for rate limiting
+                            targetKeys.push(hexKey);
                         }
                     } catch (error) {
-                        console.error('Error decoding bech32:', error);
+                        console.error('Error decoding NIP-19 identifier:', error);
                     }
                 }
             }
-
+    
             // Check if reply chain is enabled and set the target accordingly
             if (replyChainCheckbox.checked && lastEventId) {
                 tags.push(["e", lastEventId, "", "reply"]);
                 if (rootEventId && !isRootSet) {
                     tags.unshift(["e", rootEventId, "", "root"]);
                     isRootSet = true;
-                    targetKey = rootEventId; // Use rootEventId as the target for rate limiting
+                    targetKeys.push(rootEventId); // Use rootEventId as one of the targets for rate limiting
                 }
             }
-
-            // Apply rate limiting
-            if (!checkAndUpdateRateLimit(targetKey)) {
-                showNote(`You have reached the limit of 10 submissions per hour to this note or pubkey. Please try again later.`, 'warning', submitButton);
-                resetFormState();
-                return;
+    
+            // Apply rate limiting to all target keys
+            for (const targetKey of targetKeys) {
+                if (!checkAndUpdateRateLimit(targetKey)) {
+                    showNote(`You have reached the limit of 10 submissions per hour to this note or pubkey. Please try again later.`, 'warning', submitButton);
+                    resetFormState();
+                    return;
+                }
             }
-
+    
             const hashtags = note.match(/#\w+/g);
             if (hashtags) {
                 for (const tag of hashtags) {
                     tags.push(["t", tag.substring(1)]);
                 }
             }
-
+    
             const eventTemplate = {
                 kind: 1,
                 pubkey: pubKey,
@@ -587,67 +589,67 @@ document.addEventListener("DOMContentLoaded", () => {
                 tags: tags,
                 content: note
             };
-
+    
             console.log('Event Template:', eventTemplate);
-
+    
             const signedEvent = NostrTools.finalizeEvent(eventTemplate, sk);
             lastEventId = signedEvent.id;
-
+    
             saveEventId(lastEventId);
-
+    
             if (!rootEventId) {
                 rootEventId = lastEventId;
             }
-
+    
             console.log('Signed Event:', signedEvent);
-
+    
             try {
                 let selectedRelays;
-
+    
                 if (torRelaysCheckbox.checked) {
                     selectedRelays = torRelays;
                 } else {
                     selectedRelays = defaultRelays;
                 }
-
+    
                 let relaySuccess = false;
-
+    
                 if (relayHopCheckbox.checked) {
                     let availableRelays = [...selectedRelays];
-
+    
                     while (!relaySuccess && availableRelays.length > 0) {
                         const randomIndex = Math.floor(Math.random() * availableRelays.length);
                         const randomRelay = availableRelays[randomIndex];
-
+    
                         const relayResult = await sendNoteToRelay(randomRelay, signedEvent);
-
+    
                         if (relayResult.success) {
                             relaySuccess = true;
                             const eventId = signedEvent.id;
                             const eventLink = `https://njump.me/${eventId}`;
                             showNote(`Anon note sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', submitButton);
                             noteInput.value = '';
-
+    
                             localStorage.setItem(localStorageKey, currentTime);
-
+    
                             renewReplySubscriptions();
                         } else {
                             availableRelays.splice(randomIndex, 1);
                             console.warn(`Relay hop failed for relay: ${randomRelay}. Trying another relay...`);
                         }
                     }
-
+    
                     if (!relaySuccess) {
                         showNote('Relay hopping failed for all relays. Please try again later.', 'error', submitButton);
                     }
-
+    
                 } else {
                     const relayResults = await Promise.all(
                         selectedRelays.map(relayUrl => sendNoteToRelay(relayUrl, signedEvent))
                     );
-
+    
                     const successfulRelays = relayResults.filter(result => result.success).length;
-
+    
                     if (successfulRelays === 0) {
                         showNote('No relays available. Please try again later.', 'error', submitButton);
                     } else {
@@ -655,9 +657,9 @@ document.addEventListener("DOMContentLoaded", () => {
                         const eventLink = `https://njump.me/${eventId}`;
                         showNote(`Anon note sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', submitButton);
                         noteInput.value = '';
-
+    
                         localStorage.setItem(localStorageKey, currentTime);
-
+    
                         renewReplySubscriptions();
                     }
                 }
@@ -942,36 +944,36 @@ document.addEventListener("DOMContentLoaded", () => {
         const spinner = document.createElement('div');
         spinner.className = 'spinner';
         sendReplyButton.appendChild(spinner);
-
+    
         const replyStatusNote = replyForm.querySelector('.note') || document.createElement('div');
         replyStatusNote.className = 'note';
         replyStatusNote.style.display = 'none';
         replyForm.appendChild(replyStatusNote);
-
+    
         try {
             const currentTime = Math.floor(Date.now() / 1000);
             const lastSubmitTime = parseInt(localStorage.getItem(localStorageKey), 10) || 0;
             const timeSinceLastSubmit = currentTime - lastSubmitTime;
-
+    
             if (timeSinceLastSubmit < rateLimitSeconds) {
                 const timeLeft = rateLimitSeconds - timeSinceLastSubmit;
                 showReplyNote(`Please wait ${timeLeft} second(s) before submitting again.`, 'warning', replyStatusNote);
                 return;
             }
-
+    
             spinner.style.display = 'inline-block';
             sendReplyButton.disabled = true;
-
+    
             const sk = NostrTools.generateSecretKey();
             const pubKey = NostrTools.getPublicKey(sk);
-
+    
             const tags = [["e", parentId, "", "reply"]];
             let targetKeys = [parentId]; // Start with the parent event ID for rate limiting
-
+    
             const replyChainChecked = replyForm.querySelector('.reply-chain-checkbox').checked;
             const relayHopChecked = replyForm.querySelector('.relay-hop-checkbox').checked;
             const torRelaysChecked = replyForm.querySelector('.tor-relays-checkbox').checked;
-
+    
             if (replyChainChecked && lastEventId) {
                 tags.push(["e", lastEventId, "", "reply"]);
                 if (rootEventId && !tags.some(tag => tag[1] === rootEventId)) {
@@ -979,27 +981,27 @@ document.addEventListener("DOMContentLoaded", () => {
                     targetKeys.push(rootEventId); // Include the root event ID in rate limiting
                 }
             }
-
+    
             // Handle mentions in the reply content
-            const bech32Regex = /@([a-z]{1,}[1][qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,})/g;
-            const matches = content.match(bech32Regex);
-
+            const nip19Regex = /([a-z]{1,}[1][qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,})/gi;
+            const matches = content.match(nip19Regex);
+    
             if (matches) {
                 for (const match of matches) {
                     try {
-                        const decoded = NostrTools.nip19.decode(match.substring(1));
+                        const decoded = NostrTools.nip19.decode(match);
                         const hexKey = decoded.data;
-
+    
                         if (decoded.type === 'note' || decoded.type === 'npub' || decoded.type === 'nprofile') {
                             tags.push([decoded.type === 'note' ? "e" : "p", hexKey, "", "mention"]);
                             targetKeys.push(hexKey); // Add the mentioned note or pubkey as a target for rate limiting
                         }
                     } catch (error) {
-                        console.error('Error decoding bech32:', error);
+                        console.error('Error decoding NIP-19 identifier:', error);
                     }
                 }
             }
-
+    
             // Apply rate limiting to all target keys
             for (const targetKey of targetKeys) {
                 if (!checkAndUpdateRateLimit(targetKey)) {
@@ -1009,7 +1011,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
             }
-
+    
             const eventTemplate = {
                 kind: 1,
                 pubkey: pubKey,
@@ -1017,73 +1019,73 @@ document.addEventListener("DOMContentLoaded", () => {
                 tags: tags,
                 content: content
             };
-
+    
             console.log('Reply Event Template:', eventTemplate);
-
+    
             const signedEvent = NostrTools.finalizeEvent(eventTemplate, sk);
             const replyEventId = signedEvent.id;
-
+    
             console.log('Signed Reply Event:', signedEvent);
-
+    
             try {
                 let selectedRelays;
-
+    
                 if (torRelaysChecked) {
                     selectedRelays = torRelays;
                 } else {
                     selectedRelays = defaultRelays;
                 }
-
+    
                 let relaySuccess = false;
-
+    
                 if (relayHopChecked) {
                     let availableRelays = [...selectedRelays];
-
+    
                     while (!relaySuccess && availableRelays.length > 0) {
                         const randomIndex = Math.floor(Math.random() * availableRelays.length);
                         const randomRelay = availableRelays[randomIndex];
-
+    
                         const relayResult = await sendNoteToRelay(randomRelay, signedEvent);
-
+    
                         if (relayResult.success) {
                             relaySuccess = true;
                             const eventLink = `https://njump.me/${replyEventId}`;
                             showReplyNote(`Reply sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
                             timelineItem.querySelector('.reply-textarea').value = '';
-
+    
                             saveEventId(replyEventId);
-
+    
                             localStorage.setItem(localStorageKey, currentTime);
-
+    
                             renewReplySubscriptions();
                         } else {
                             availableRelays.splice(randomIndex, 1);
                             console.warn(`Relay hop failed for relay: ${randomRelay}. Trying another relay...`);
                         }
                     }
-
+    
                     if (!relaySuccess) {
                         showReplyNote('Relay hopping failed for all relays. Please try again later.', 'error', replyStatusNote);
                     }
-
+    
                 } else {
                     const relayResults = await Promise.all(
                         selectedRelays.map(relayUrl => sendNoteToRelay(relayUrl, signedEvent))
                     );
-
+    
                     const successfulRelays = relayResults.filter(result => result.success).length;
-
+    
                     if (successfulRelays === 0) {
                         showReplyNote('No relays available. Please try again later.', 'error', replyStatusNote);
                     } else {
                         const eventLink = `https://njump.me/${replyEventId}`;
                         showReplyNote(`Reply sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
                         timelineItem.querySelector('.reply-textarea').value = '';
-
+    
                         saveEventId(replyEventId);
-
+    
                         localStorage.setItem(localStorageKey, currentTime);
-
+    
                         renewReplySubscriptions();
                     }
                 }
