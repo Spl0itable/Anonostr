@@ -489,49 +489,68 @@ document.addEventListener("DOMContentLoaded", () => {
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
-    
+
         try {
             const currentTime = Math.floor(Date.now() / 1000);
             const lastSubmitTime = parseInt(localStorage.getItem(localStorageKey), 10) || 0;
             const timeSinceLastSubmit = currentTime - lastSubmitTime;
-    
+
             if (timeSinceLastSubmit < rateLimitSeconds) {
                 const timeLeft = rateLimitSeconds - timeSinceLastSubmit;
                 showNote(`Please wait ${timeLeft} second(s) before submitting again.`, 'warning', submitButton);
                 return;
             }
-    
+
             // Reset the status note and show the spinner
             showNote('', '', submitButton); // Ensure the note is cleared
             spinner.style.display = 'inline-block';
             submitButton.disabled = true;
-    
+
             // Generate a new key pair on each submit
             const sk = NostrTools.generateSecretKey();
             const pubKey = NostrTools.getPublicKey(sk);
-    
+
             let note = noteInput.value.trim();
             if (!note) {
                 showNote('Please enter a note.', 'error', submitButton);
                 resetFormState();
                 return;
             }
-    
+
+            // Generate a hash of the note content
+            const contentHash = hashString(note);
+
+            // Check for duplicate submissions
+            let previousSubmissions = JSON.parse(localStorage.getItem('submittedContentHashes')) || [];
+            const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
+
+            // Filter out old submissions (older than 1 hour)
+            previousSubmissions = previousSubmissions.filter(entry => entry.timestamp > oneHourAgo);
+
+            // Check if the current content hash is already in the recent submissions
+            if (previousSubmissions.some(entry => entry.hash === contentHash)) {
+                showNote('Duplicate submission detected. Please modify your note before resubmitting.', 'warning', submitButton);
+                resetFormState();
+                return;
+            }
+
+            // Proceed with submission logic...
             const tags = [];
             const nip19Regex = /([a-z]{1,}[1][qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,})/gi;
-    
+            const hashtagRegex = /#\w+/g;
+
             let isRootSet = false;
             let firstMatchIsNote = false;
             let targetKeys = [];
-    
-            // Handle mentions and note references
+
+            // Handle mentions, note references, and hashtags
             const matches = note.match(nip19Regex);
             if (matches) {
                 for (const match of matches) {
                     try {
                         const decoded = NostrTools.nip19.decode(match);
                         const hexKey = decoded.data;
-    
+
                         if (decoded.type === 'note') {
                             if (!isRootSet && note.startsWith(match)) {
                                 rootEventId = hexKey;
@@ -555,7 +574,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             }
-    
+
+            // Handle hashtags
+            const hashtags = note.match(hashtagRegex);
+            if (hashtags) {
+                for (const tag of hashtags) {
+                    tags.push(["t", tag.substring(1)]);
+                    targetKeys.push(tag.toLowerCase()); // Treat hashtag as a target key for rate limiting
+                }
+            }
+
             // Check if reply chain is enabled and set the target accordingly
             if (replyChainCheckbox.checked && lastEventId) {
                 tags.push(["e", lastEventId, "", "reply"]);
@@ -565,23 +593,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     targetKeys.push(rootEventId); // Use rootEventId as one of the targets for rate limiting
                 }
             }
-    
+
             // Apply rate limiting to all target keys
             for (const targetKey of targetKeys) {
                 if (!checkAndUpdateRateLimit(targetKey)) {
-                    showNote(`You have reached the limit of 10 submissions per hour to this note or pubkey. Please try again later.`, 'warning', submitButton);
+                    showNote(`You have reached the limit of 10 submissions per hour to this note, pubkey, or hashtag. Please try again later.`, 'warning', submitButton);
                     resetFormState();
                     return;
                 }
             }
-    
-            const hashtags = note.match(/#\w+/g);
-            if (hashtags) {
-                for (const tag of hashtags) {
-                    tags.push(["t", tag.substring(1)]);
-                }
-            }
-    
+
             const eventTemplate = {
                 kind: 1,
                 pubkey: pubKey,
@@ -589,67 +610,71 @@ document.addEventListener("DOMContentLoaded", () => {
                 tags: tags,
                 content: note
             };
-    
+
             console.log('Event Template:', eventTemplate);
-    
+
             const signedEvent = NostrTools.finalizeEvent(eventTemplate, sk);
             lastEventId = signedEvent.id;
-    
+
             saveEventId(lastEventId);
-    
+
             if (!rootEventId) {
                 rootEventId = lastEventId;
             }
-    
+
             console.log('Signed Event:', signedEvent);
-    
+
             try {
                 let selectedRelays;
-    
+
                 if (torRelaysCheckbox.checked) {
                     selectedRelays = torRelays;
                 } else {
                     selectedRelays = defaultRelays;
                 }
-    
+
                 let relaySuccess = false;
-    
+
                 if (relayHopCheckbox.checked) {
                     let availableRelays = [...selectedRelays];
-    
+
                     while (!relaySuccess && availableRelays.length > 0) {
                         const randomIndex = Math.floor(Math.random() * availableRelays.length);
                         const randomRelay = availableRelays[randomIndex];
-    
+
                         const relayResult = await sendNoteToRelay(randomRelay, signedEvent);
-    
+
                         if (relayResult.success) {
                             relaySuccess = true;
                             const eventId = signedEvent.id;
                             const eventLink = `https://njump.me/${eventId}`;
                             showNote(`Anon note sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', submitButton);
                             noteInput.value = '';
-    
+
+                            // Store the content hash with the current timestamp to prevent duplicate submissions
+                            previousSubmissions.push({ hash: contentHash, timestamp: currentTime });
+                            localStorage.setItem('submittedContentHashes', JSON.stringify(previousSubmissions));
+
                             localStorage.setItem(localStorageKey, currentTime);
-    
+
                             renewReplySubscriptions();
                         } else {
                             availableRelays.splice(randomIndex, 1);
                             console.warn(`Relay hop failed for relay: ${randomRelay}. Trying another relay...`);
                         }
                     }
-    
+
                     if (!relaySuccess) {
                         showNote('Relay hopping failed for all relays. Please try again later.', 'error', submitButton);
                     }
-    
+
                 } else {
                     const relayResults = await Promise.all(
                         selectedRelays.map(relayUrl => sendNoteToRelay(relayUrl, signedEvent))
                     );
-    
+
                     const successfulRelays = relayResults.filter(result => result.success).length;
-    
+
                     if (successfulRelays === 0) {
                         showNote('No relays available. Please try again later.', 'error', submitButton);
                     } else {
@@ -657,14 +682,18 @@ document.addEventListener("DOMContentLoaded", () => {
                         const eventLink = `https://njump.me/${eventId}`;
                         showNote(`Anon note sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', submitButton);
                         noteInput.value = '';
-    
+
+                        // Store the content hash with the current timestamp to prevent duplicate submissions
+                        previousSubmissions.push({ hash: contentHash, timestamp: currentTime });
+                        localStorage.setItem('submittedContentHashes', JSON.stringify(previousSubmissions));
+
                         localStorage.setItem(localStorageKey, currentTime);
-    
+
                         renewReplySubscriptions();
                     }
                 }
             } catch (error) {
-                console.error('Failed to send anon note:', error);
+                console.error('Failed to send note:', error);
                 showNote('Failed to send anon note. Please try again.', 'error', submitButton);
             } finally {
                 resetFormState();
@@ -944,36 +973,54 @@ document.addEventListener("DOMContentLoaded", () => {
         const spinner = document.createElement('div');
         spinner.className = 'spinner';
         sendReplyButton.appendChild(spinner);
-    
+
         const replyStatusNote = replyForm.querySelector('.note') || document.createElement('div');
         replyStatusNote.className = 'note';
         replyStatusNote.style.display = 'none';
         replyForm.appendChild(replyStatusNote);
-    
+
         try {
             const currentTime = Math.floor(Date.now() / 1000);
             const lastSubmitTime = parseInt(localStorage.getItem(localStorageKey), 10) || 0;
             const timeSinceLastSubmit = currentTime - lastSubmitTime;
-    
+
             if (timeSinceLastSubmit < rateLimitSeconds) {
                 const timeLeft = rateLimitSeconds - timeSinceLastSubmit;
                 showReplyNote(`Please wait ${timeLeft} second(s) before submitting again.`, 'warning', replyStatusNote);
+                resetReplyFormState(spinner, sendReplyButton);
                 return;
             }
-    
+
             spinner.style.display = 'inline-block';
             sendReplyButton.disabled = true;
-    
+
             const sk = NostrTools.generateSecretKey();
             const pubKey = NostrTools.getPublicKey(sk);
-    
+
+            // Generate a hash of the reply content
+            const contentHash = hashString(content);
+
+            // Check for duplicate submissions
+            let previousSubmissions = JSON.parse(localStorage.getItem('submittedContentHashes')) || [];
+            const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
+
+            // Filter out old submissions (older than 1 hour)
+            previousSubmissions = previousSubmissions.filter(entry => entry.timestamp > oneHourAgo);
+
+            // Check if the current content hash is already in the recent submissions
+            if (previousSubmissions.some(entry => entry.hash === contentHash)) {
+                showReplyNote('Duplicate submission detected. Please modify your reply before resubmitting.', 'warning', replyStatusNote);
+                resetReplyFormState(spinner, sendReplyButton);
+                return;
+            }
+
             const tags = [["e", parentId, "", "reply"]];
             let targetKeys = [parentId]; // Start with the parent event ID for rate limiting
-    
+
             const replyChainChecked = replyForm.querySelector('.reply-chain-checkbox').checked;
             const relayHopChecked = replyForm.querySelector('.relay-hop-checkbox').checked;
             const torRelaysChecked = replyForm.querySelector('.tor-relays-checkbox').checked;
-    
+
             if (replyChainChecked && lastEventId) {
                 tags.push(["e", lastEventId, "", "reply"]);
                 if (rootEventId && !tags.some(tag => tag[1] === rootEventId)) {
@@ -981,17 +1028,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     targetKeys.push(rootEventId); // Include the root event ID in rate limiting
                 }
             }
-    
-            // Handle mentions in the reply content
+
+            // Handle mentions and hashtags in the reply content
             const nip19Regex = /([a-z]{1,}[1][qpzry9x8gf2tvdw0s3jn54khce6mua7l]{6,})/gi;
+            const hashtagRegex = /#\w+/g;
+
             const matches = content.match(nip19Regex);
-    
             if (matches) {
                 for (const match of matches) {
                     try {
                         const decoded = NostrTools.nip19.decode(match);
                         const hexKey = decoded.data;
-    
+
                         if (decoded.type === 'note' || decoded.type === 'npub' || decoded.type === 'nprofile') {
                             tags.push([decoded.type === 'note' ? "e" : "p", hexKey, "", "mention"]);
                             targetKeys.push(hexKey); // Add the mentioned note or pubkey as a target for rate limiting
@@ -1001,17 +1049,25 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             }
-    
+
+            // Handle hashtags
+            const hashtags = content.match(hashtagRegex);
+            if (hashtags) {
+                for (const tag of hashtags) {
+                    tags.push(["t", tag.substring(1)]);
+                    targetKeys.push(tag.toLowerCase());
+                }
+            }
+
             // Apply rate limiting to all target keys
             for (const targetKey of targetKeys) {
                 if (!checkAndUpdateRateLimit(targetKey)) {
-                    showReplyNote(`You have reached the limit of 10 replies per hour to this note or pubkey. Please try again later.`, 'warning', replyStatusNote);
-                    spinner.style.display = 'none';
-                    sendReplyButton.disabled = false;
+                    showReplyNote(`You have reached the limit of 10 replies per hour to this note, pubkey, or hashtag. Please try again later.`, 'warning', replyStatusNote);
+                    resetReplyFormState(spinner, sendReplyButton);
                     return;
                 }
             }
-    
+
             const eventTemplate = {
                 kind: 1,
                 pubkey: pubKey,
@@ -1019,89 +1075,97 @@ document.addEventListener("DOMContentLoaded", () => {
                 tags: tags,
                 content: content
             };
-    
+
             console.log('Reply Event Template:', eventTemplate);
-    
+
             const signedEvent = NostrTools.finalizeEvent(eventTemplate, sk);
             const replyEventId = signedEvent.id;
-    
+
             console.log('Signed Reply Event:', signedEvent);
-    
+
             try {
                 let selectedRelays;
-    
+
                 if (torRelaysChecked) {
                     selectedRelays = torRelays;
                 } else {
                     selectedRelays = defaultRelays;
                 }
-    
+
                 let relaySuccess = false;
-    
+
                 if (relayHopChecked) {
                     let availableRelays = [...selectedRelays];
-    
+
                     while (!relaySuccess && availableRelays.length > 0) {
                         const randomIndex = Math.floor(Math.random() * availableRelays.length);
                         const randomRelay = availableRelays[randomIndex];
-    
+
                         const relayResult = await sendNoteToRelay(randomRelay, signedEvent);
-    
+
                         if (relayResult.success) {
                             relaySuccess = true;
                             const eventLink = `https://njump.me/${replyEventId}`;
-                            showReplyNote(`Anon reply sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
+                            showReplyNote(`Reply sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
                             timelineItem.querySelector('.reply-textarea').value = '';
-    
-                            saveEventId(replyEventId);
-    
+
+                            // Store the content hash with the current timestamp to prevent duplicate submissions
+                            previousSubmissions.push({ hash: contentHash, timestamp: currentTime });
+                            localStorage.setItem('submittedContentHashes', JSON.stringify(previousSubmissions));
+
                             localStorage.setItem(localStorageKey, currentTime);
-    
+
                             renewReplySubscriptions();
                         } else {
                             availableRelays.splice(randomIndex, 1);
                             console.warn(`Relay hop failed for relay: ${randomRelay}. Trying another relay...`);
                         }
                     }
-    
+
                     if (!relaySuccess) {
                         showReplyNote('Relay hopping failed for all relays. Please try again later.', 'error', replyStatusNote);
                     }
-    
+
                 } else {
                     const relayResults = await Promise.all(
                         selectedRelays.map(relayUrl => sendNoteToRelay(relayUrl, signedEvent))
                     );
-    
+
                     const successfulRelays = relayResults.filter(result => result.success).length;
-    
+
                     if (successfulRelays === 0) {
                         showReplyNote('No relays available. Please try again later.', 'error', replyStatusNote);
                     } else {
                         const eventLink = `https://njump.me/${replyEventId}`;
-                        showReplyNote(`Anon reply sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
+                        showReplyNote(`Reply sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
                         timelineItem.querySelector('.reply-textarea').value = '';
-    
-                        saveEventId(replyEventId);
-    
+
+                        // Store the content hash with the current timestamp to prevent duplicate submissions
+                        previousSubmissions.push({ hash: contentHash, timestamp: currentTime });
+                        localStorage.setItem('submittedContentHashes', JSON.stringify(previousSubmissions));
+
                         localStorage.setItem(localStorageKey, currentTime);
-    
+
                         renewReplySubscriptions();
                     }
                 }
             } catch (error) {
-                console.error('Failed to send anon reply:', error);
-                showReplyNote('Failed to send anon reply. Please try again.', 'error', replyStatusNote);
+                console.error('Failed to send reply:', error);
+                showReplyNote('Failed to send reply. Please try again.', 'error', replyStatusNote);
             } finally {
-                spinner.style.display = 'none';
-                sendReplyButton.disabled = false;
+                resetReplyFormState(spinner, sendReplyButton);
             }
         } catch (error) {
             console.error('Error in reply submission process:', error);
             showReplyNote('An unexpected error occurred. Please try again.', 'error', replyStatusNote);
-            spinner.style.display = 'none';
-            sendReplyButton.disabled = false;
+            resetReplyFormState(spinner, sendReplyButton);
         }
+    }
+
+    // Function to reset the reply form state
+    function resetReplyFormState(spinner, sendReplyButton) {
+        spinner.style.display = 'none';
+        sendReplyButton.disabled = false;
     }
 
     function showReplyNote(note, type, replyStatusNote) {

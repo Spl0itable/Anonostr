@@ -1,3 +1,7 @@
+## v1.5.11 - 2024-09-05
+
+- Hotfix: refined rate limit logic further with deduplication and support for hashtags
+
 ## v1.5.10 - 2024-09-05
 
 - Hotfix: refined rate limit logic
