@@ -1106,7 +1106,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (relayResult.success) {
                             relaySuccess = true;
                             const eventLink = `https://njump.me/${replyEventId}`;
-                            showReplyNote(`Reply sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
+                            showReplyNote(`Anon reply sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
                             timelineItem.querySelector('.reply-textarea').value = '';
 
                             // Store the content hash with the current timestamp to prevent duplicate submissions
@@ -1137,7 +1137,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         showReplyNote('No relays available. Please try again later.', 'error', replyStatusNote);
                     } else {
                         const eventLink = `https://njump.me/${replyEventId}`;
-                        showReplyNote(`Reply sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
+                        showReplyNote(`Anon reply sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
                         timelineItem.querySelector('.reply-textarea').value = '';
 
                         // Store the content hash with the current timestamp to prevent duplicate submissions
@@ -1151,7 +1151,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             } catch (error) {
                 console.error('Failed to send reply:', error);
-                showReplyNote('Failed to send reply. Please try again.', 'error', replyStatusNote);
+                showReplyNote('Failed to send anon reply. Please try again.', 'error', replyStatusNote);
             } finally {
                 resetReplyFormState(spinner, sendReplyButton);
             }
