@@ -664,7 +664,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             } catch (error) {
-                console.error('Failed to send note:', error);
+                console.error('Failed to send anon note:', error);
                 showNote('Failed to send anon note. Please try again.', 'error', submitButton);
             } finally {
                 resetFormState();
@@ -1050,7 +1050,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (relayResult.success) {
                             relaySuccess = true;
                             const eventLink = `https://njump.me/${replyEventId}`;
-                            showReplyNote(`Reply sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
+                            showReplyNote(`Anon reply sent successfully via relay hop! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
                             timelineItem.querySelector('.reply-textarea').value = '';
     
                             saveEventId(replyEventId);
@@ -1079,7 +1079,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         showReplyNote('No relays available. Please try again later.', 'error', replyStatusNote);
                     } else {
                         const eventLink = `https://njump.me/${replyEventId}`;
-                        showReplyNote(`Reply sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
+                        showReplyNote(`Anon reply sent successfully via ${successfulRelays}/${selectedRelays.length} relays! <a href="${eventLink}" target="_blank">View Event</a>`, 'success', replyStatusNote);
                         timelineItem.querySelector('.reply-textarea').value = '';
     
                         saveEventId(replyEventId);
@@ -1090,8 +1090,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             } catch (error) {
-                console.error('Failed to send reply:', error);
-                showReplyNote('Failed to send reply. Please try again.', 'error', replyStatusNote);
+                console.error('Failed to send anon reply:', error);
+                showReplyNote('Failed to send anon reply. Please try again.', 'error', replyStatusNote);
             } finally {
                 spinner.style.display = 'none';
                 sendReplyButton.disabled = false;
