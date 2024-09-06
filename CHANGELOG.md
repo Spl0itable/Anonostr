@@ -1,3 +1,8 @@
+## v1.6.12 - 2024-09-06
+
+- Tweak: refactored entire code
+- Fix: follow/unfollow not refreshing following timeline
+
 ## v1.6.11 - 2024-09-05
 
 - New: generates random display name and avatar for every key pair
